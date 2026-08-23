@@ -1,0 +1,18 @@
+using Zerei.Application.Dtos;
+using Zerei.Domain.Entities;
+
+namespace Zerei.Application;
+
+/// <summary>Conversões entidade → DTO reutilizadas pelos serviços.</summary>
+public static class Mapeamentos
+{
+    public static JogoDto ToDto(Jogo j) =>
+        new(j.Id, j.Nome, j.Ano, j.CapaUrl, j.Generos?.Select(g => g.Nome).ToList() ?? new());
+
+    public static JogatinaDto ToDto(Jogatina j) =>
+        new(j.Id, j.PlataformaId, j.Plataforma?.Nome, j.Ano, j.Horas, j.Status, j.EhRejogada, j.Observacao);
+
+    public static UsuarioJogoDto ToDto(UsuarioJogo uj) =>
+        new(uj.Id, ToDto(uj.Jogo), uj.Status, uj.Nota, uj.Favorito, uj.Resenha,
+            uj.Jogatinas?.OrderByDescending(x => x.Ano).Select(ToDto).ToList() ?? new());
+}

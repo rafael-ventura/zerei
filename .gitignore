@@ -1,0 +1,19 @@
+# .NET
+bin/
+obj/
+*.user
+
+# Node / Angular
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+
+# Ambiente
+*.env
+.env.local
+
+# IDE / OS
+.vs/
+.idea/
+.DS_Store
+Thumbs.db
