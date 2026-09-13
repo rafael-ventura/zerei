@@ -15,5 +15,6 @@ frontend/.angular/
 # IDE / OS
 .vs/
 .idea/
+.serena/
 .DS_Store
 Thumbs.db
