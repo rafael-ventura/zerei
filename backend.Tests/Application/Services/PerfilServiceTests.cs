@@ -26,9 +26,11 @@ public class PerfilServiceTests
             {
                 UsuarioId = 1,
                 JogoId = jogo1.Id,
-                Status = StatusJogo.Platinado,
+                Status = StatusJogo.Jogado,
+                Zerado = true,
+                Platinado = true,
                 Nota = 10,
-                Jogatinas = { new Jogatina { PlataformaId = ps2.Id, Horas = 40, Status = StatusJogo.Platinado } },
+                Jogatinas = { new Jogatina { PlataformaId = ps2.Id, Horas = 40, Status = StatusJogo.Jogado, Zerado = true, Platinado = true } },
             },
             new UsuarioJogo
             {
@@ -76,8 +78,8 @@ public class PerfilServiceTests
 
     [Theory]
     [InlineData(StatusJogo.QueroJogar, "Quero jogar")]
-    [InlineData(StatusJogo.CemPorcento, "100%")]
-    [InlineData(StatusJogo.Platinado, "Platinado")]
+    [InlineData(StatusJogo.Jogando, "Jogando")]
+    [InlineData(StatusJogo.Jogado, "Jogado")]
     public void StatusLabel_ReturnsExpectedPortugueseLabel(StatusJogo status, string expected)
     {
         Assert.Equal(expected, PerfilService.StatusLabel(status));

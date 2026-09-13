@@ -21,9 +21,9 @@ public class PerfilService
 
         var total = ujs.Count;
         var jogando = ujs.Count(x => x.Status == StatusJogo.Jogando);
-        var zerados = ujs.Count(x => x.Status is StatusJogo.Zerado or StatusJogo.CemPorcento or StatusJogo.Platinado);
-        var platinados = ujs.Count(x => x.Status == StatusJogo.Platinado);
-        var abandonados = ujs.Count(x => x.Status == StatusJogo.Abandonado);
+        var zerados = ujs.Count(x => x.Zerado);
+        var platinados = ujs.Count(x => x.Platinado);
+        var abandonados = ujs.Count(x => x.Abandonado);
         var queroJogar = ujs.Count(x => x.Status == StatusJogo.QueroJogar);
 
         var todasJogatinas = ujs.SelectMany(x => x.Jogatinas).ToList();
@@ -49,10 +49,16 @@ public class PerfilService
             .Select(g => new DistribuicaoItem(g.Key, g.Count()))
             .OrderByDescending(d => d.Quantidade).ToList();
 
-        var porStatus = ujs
-            .GroupBy(x => x.Status)
-            .Select(g => new DistribuicaoItem(StatusLabel(g.Key), g.Count()))
-            .OrderByDescending(d => d.Quantidade).ToList();
+        // Zerado/Platinado se sobrepõem de propósito aqui (todo platinado também é zerado) —
+        // não dá mais pra fazer um GroupBy simples por Status, já que essas são flags, não valores exclusivos.
+        var porStatus = new[]
+        {
+            new DistribuicaoItem(StatusLabel(StatusJogo.QueroJogar), queroJogar),
+            new DistribuicaoItem(StatusLabel(StatusJogo.Jogando), jogando),
+            new DistribuicaoItem("Zerado", zerados),
+            new DistribuicaoItem("Platinado", platinados),
+            new DistribuicaoItem("Abandonado", abandonados),
+        }.Where(d => d.Quantidade > 0).OrderByDescending(d => d.Quantidade).ToList();
 
         return new EstatisticasDto(total, jogando, zerados, platinados, abandonados, queroJogar,
             totalHoras, notaMedia, plataformaFavorita, generoFavorito, porFamilia, porStatus);
@@ -103,10 +109,6 @@ public class PerfilService
         StatusJogo.QueroJogar => "Quero jogar",
         StatusJogo.Jogando => "Jogando",
         StatusJogo.Jogado => "Jogado",
-        StatusJogo.Zerado => "Zerado",
-        StatusJogo.CemPorcento => "100%",
-        StatusJogo.Platinado => "Platinado",
-        StatusJogo.Abandonado => "Abandonado",
         _ => s.ToString()
     };
 }

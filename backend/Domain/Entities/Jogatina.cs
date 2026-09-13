@@ -19,6 +19,9 @@ public class Jogatina
     public int? Ano { get; set; }
     public double? Horas { get; set; }
     public StatusJogo Status { get; set; } = StatusJogo.Jogado;
+    public bool Zerado { get; set; }
+    public bool Platinado { get; set; }
+    public bool Abandonado { get; set; }
     public bool EhRejogada { get; set; }
     public string? Observacao { get; set; }
 

@@ -58,9 +58,9 @@ public class BibliotecaServiceTests
         var db = TestDb.New();
         var jogo = await SeedJogoAsync(db);
         var service = new BibliotecaService(db);
-        var criado = await service.MarcarAsync(1, jogo.Id, StatusJogo.Zerado);
+        var criado = await service.MarcarAsync(1, jogo.Id, StatusJogo.Jogado);
 
-        var result = await service.AtualizarAsync(1, criado.Id, new AtualizarBibliotecaRequest(null, 15, null, null));
+        var result = await service.AtualizarAsync(1, criado.Id, new AtualizarBibliotecaRequest(null, 15, null, null, null, null, null));
 
         Assert.Equal(10, result.Nota);
     }
@@ -71,13 +71,14 @@ public class BibliotecaServiceTests
         var db = TestDb.New();
         var jogo = await SeedJogoAsync(db);
         var service = new BibliotecaService(db);
-        var uj = await service.MarcarAsync(1, jogo.Id, StatusJogo.Zerado);
+        var uj = await service.MarcarAsync(1, jogo.Id, StatusJogo.Jogado);
 
         var jogatina = await service.AdicionarJogatinaAsync(1, uj.Id,
-            new CriarJogatinaRequest(null, 2005, 40.5, StatusJogo.Zerado, false, "Primeira zerada"));
+            new CriarJogatinaRequest(null, 2005, 40.5, StatusJogo.Jogado, false, "Primeira zerada", Zerado: true));
 
         Assert.Equal(2005, jogatina.Ano);
         Assert.Equal(40.5, jogatina.Horas);
+        Assert.True(jogatina.Zerado);
     }
 
     [Fact]
@@ -97,11 +98,90 @@ public class BibliotecaServiceTests
         var jogo2 = await SeedJogoAsync(db, "Jogo B");
         var service = new BibliotecaService(db);
         await service.MarcarAsync(1, jogo1.Id, StatusJogo.Jogando);
-        await service.MarcarAsync(1, jogo2.Id, StatusJogo.Zerado);
+        await service.MarcarAsync(1, jogo2.Id, StatusJogo.Jogado);
 
         var jogando = await service.ListarAsync(1, StatusJogo.Jogando);
 
         Assert.Single(jogando);
         Assert.Equal("Jogo A", jogando[0].Jogo.Nome);
+    }
+
+    [Fact]
+    public async Task AtualizarAsync_ComHoras_CriaJogatinaPrincipalSemPrecisarDeModal()
+    {
+        var db = TestDb.New();
+        var jogo = await SeedJogoAsync(db);
+        var service = new BibliotecaService(db);
+        var uj = await service.MarcarAsync(1, jogo.Id, StatusJogo.Jogado);
+
+        var result = await service.AtualizarAsync(1, uj.Id,
+            new AtualizarBibliotecaRequest(null, null, null, null, null, null, null, Horas: 12.5));
+
+        Assert.Single(result.Jogatinas);
+        Assert.Equal(12.5, result.Jogatinas[0].Horas);
+        Assert.False(result.Jogatinas[0].EhRejogada);
+    }
+
+    [Fact]
+    public async Task AtualizarAsync_ComHorasDuasVezes_AtualizaMesmaJogatinaEmVezDeDuplicar()
+    {
+        var db = TestDb.New();
+        var jogo = await SeedJogoAsync(db);
+        var service = new BibliotecaService(db);
+        var uj = await service.MarcarAsync(1, jogo.Id, StatusJogo.Jogado);
+        await service.AtualizarAsync(1, uj.Id, new AtualizarBibliotecaRequest(null, null, null, null, null, null, null, Horas: 10));
+
+        var result = await service.AtualizarAsync(1, uj.Id,
+            new AtualizarBibliotecaRequest(null, null, null, null, null, null, null, Horas: 20));
+
+        Assert.Single(result.Jogatinas);
+        Assert.Equal(20, result.Jogatinas[0].Horas);
+    }
+
+    [Fact]
+    public async Task AtualizarAsync_MarcarPlatinado_TambemMarcaZerado()
+    {
+        var db = TestDb.New();
+        var jogo = await SeedJogoAsync(db);
+        var service = new BibliotecaService(db);
+        var uj = await service.MarcarAsync(1, jogo.Id, StatusJogo.Jogado);
+
+        var result = await service.AtualizarAsync(1, uj.Id,
+            new AtualizarBibliotecaRequest(null, null, null, null, Zerado: null, Platinado: true, Abandonado: null));
+
+        Assert.True(result.Platinado);
+        Assert.True(result.Zerado);
+    }
+
+    [Fact]
+    public async Task AtualizarAsync_MarcarAbandonado_DesmarcaZeradoEPlatinado()
+    {
+        var db = TestDb.New();
+        var jogo = await SeedJogoAsync(db);
+        var service = new BibliotecaService(db);
+        var uj = await service.MarcarAsync(1, jogo.Id, StatusJogo.Jogado);
+        await service.AtualizarAsync(1, uj.Id, new AtualizarBibliotecaRequest(null, null, null, null, true, true, null));
+
+        var result = await service.AtualizarAsync(1, uj.Id,
+            new AtualizarBibliotecaRequest(null, null, null, null, null, null, Abandonado: true));
+
+        Assert.True(result.Abandonado);
+        Assert.False(result.Zerado);
+        Assert.False(result.Platinado);
+    }
+
+    [Fact]
+    public async Task AtualizarAsync_MarcarZerado_PromoveStatusJogandoParaJogado()
+    {
+        var db = TestDb.New();
+        var jogo = await SeedJogoAsync(db);
+        var service = new BibliotecaService(db);
+        var uj = await service.MarcarAsync(1, jogo.Id, StatusJogo.Jogando);
+
+        var result = await service.AtualizarAsync(1, uj.Id,
+            new AtualizarBibliotecaRequest(null, null, null, null, Zerado: true, null, null));
+
+        Assert.Equal(StatusJogo.Jogado, result.Status);
+        Assert.True(result.Zerado);
     }
 }

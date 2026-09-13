@@ -77,10 +77,35 @@ public class BibliotecaService
         if (req.Nota.HasValue) uj.Nota = Math.Clamp(req.Nota.Value, 0, 10);
         if (req.Favorito.HasValue) uj.Favorito = req.Favorito.Value;
         if (req.Resenha is not null) uj.Resenha = req.Resenha;
-        uj.AtualizadoEm = DateTime.UtcNow;
 
+        var flags = FlagsConclusao.Resolver(uj.Zerado, uj.Platinado, uj.Abandonado, req.Zerado, req.Platinado, req.Abandonado);
+        (uj.Zerado, uj.Platinado, uj.Abandonado) = flags;
+        if ((uj.Zerado || uj.Abandonado) && uj.Status == StatusJogo.Jogando)
+            uj.Status = StatusJogo.Jogado;
+
+        // Caso comum (uma jogatina só): plataforma/horas informados direto na tela principal,
+        // sem precisar do modal de "registrar jogatina" — que fica reservado pra rejogadas de verdade.
+        if (req.PlataformaId.HasValue || req.Horas.HasValue)
+        {
+            var principal = uj.Jogatinas.Where(j => !j.EhRejogada).OrderBy(j => j.CriadoEm).FirstOrDefault();
+            if (principal is null)
+            {
+                // Não precisa dar Add manual em uj.Jogatinas — o EF faz o fixup do relacionamento
+                // sozinho (mesmo FK, mesmo contexto). Adicionar os dois manualmente duplicava a entrada.
+                principal = new Jogatina { UsuarioJogoId = uj.Id, EhRejogada = false };
+                _db.Jogatinas.Add(principal);
+            }
+            if (req.PlataformaId.HasValue) principal.PlataformaId = req.PlataformaId;
+            if (req.Horas.HasValue) principal.Horas = req.Horas;
+            principal.Status = uj.Status;
+            principal.Zerado = uj.Zerado;
+            principal.Platinado = uj.Platinado;
+            principal.Abandonado = uj.Abandonado;
+        }
+
+        uj.AtualizadoEm = DateTime.UtcNow;
         await _db.SaveChangesAsync();
-        return Mapeamentos.ToDto(uj);
+        return Mapeamentos.ToDto(await CarregarCompleto(usuarioId).FirstAsync(x => x.Id == usuarioJogoId));
     }
 
     public async Task RemoverAsync(int usuarioId, int usuarioJogoId)
@@ -96,6 +121,8 @@ public class BibliotecaService
         var uj = await _db.UsuarioJogos.FirstOrDefaultAsync(x => x.Id == usuarioJogoId && x.UsuarioId == usuarioId)
             ?? throw new KeyNotFoundException("Registro não encontrado.");
 
+        var flags = FlagsConclusao.Resolver(false, false, false, req.Zerado, req.Platinado, req.Abandonado);
+
         var jogatina = new Jogatina
         {
             UsuarioJogoId = uj.Id,
@@ -103,6 +130,9 @@ public class BibliotecaService
             Ano = req.Ano,
             Horas = req.Horas,
             Status = req.Status,
+            Zerado = flags.Zerado,
+            Platinado = flags.Platinado,
+            Abandonado = flags.Abandonado,
             EhRejogada = req.EhRejogada,
             Observacao = req.Observacao
         };
@@ -111,8 +141,8 @@ public class BibliotecaService
         await _db.SaveChangesAsync();
 
         var plataforma = req.PlataformaId is null ? null : await _db.Plataformas.FindAsync(req.PlataformaId);
-        return new JogatinaDto(jogatina.Id, jogatina.PlataformaId, plataforma?.Nome,
-            jogatina.Ano, jogatina.Horas, jogatina.Status, jogatina.EhRejogada, jogatina.Observacao);
+        return new JogatinaDto(jogatina.Id, jogatina.PlataformaId, plataforma?.Nome, jogatina.Ano, jogatina.Horas,
+            jogatina.Status, jogatina.Zerado, jogatina.Platinado, jogatina.Abandonado, jogatina.EhRejogada, jogatina.Observacao);
     }
 
     public async Task RemoverJogatinaAsync(int usuarioId, int jogatinaId)
@@ -130,4 +160,28 @@ public class BibliotecaService
             .Where(uj => uj.UsuarioId == usuarioId)
             .Include(uj => uj.Jogo).ThenInclude(j => j.Generos)
             .Include(uj => uj.Jogatinas).ThenInclude(j => j.Plataforma);
+
+    /// <summary>
+    /// Zerado/Platinado/Abandonado, resolvidos juntos porque não são independentes:
+    /// Platinado implica Zerado; Zerado e Abandonado são irmãos mutuamente exclusivos.
+    /// Reaproveitado por <see cref="UsuarioJogo"/> (via <see cref="AtualizarAsync"/>) e
+    /// <see cref="Jogatina"/> (via <see cref="AdicionarJogatinaAsync"/>) — mesma regra nos dois.
+    /// </summary>
+    private readonly record struct FlagsConclusao(bool Zerado, bool Platinado, bool Abandonado)
+    {
+        public static FlagsConclusao Resolver(
+            bool zeradoAtual, bool platinadoAtual, bool abandonadoAtual,
+            bool? novoZerado, bool? novoPlatinado, bool? novoAbandonado)
+        {
+            var zerado = novoZerado ?? zeradoAtual;
+            var platinado = novoPlatinado ?? platinadoAtual;
+            var abandonado = novoAbandonado ?? abandonadoAtual;
+
+            if (novoAbandonado is true) { zerado = false; platinado = false; }
+            else if (novoZerado is true) abandonado = false;
+            if (platinado) { zerado = true; abandonado = false; }
+
+            return new FlagsConclusao(zerado, platinado, abandonado);
+        }
+    }
 }
