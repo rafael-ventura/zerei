@@ -14,6 +14,7 @@ public static class SeedData
         await SeedGenerosAsync(db);
         await SeedPlataformasAsync(db);
         await SeedJogosAsync(db);
+        await SeedJogosPessoaisAsync(db);
     }
 
     private static readonly (string Slug, string Nome)[] Generos =
@@ -160,6 +161,37 @@ public static class SeedData
         {
             if (existentesSet.Contains(nome)) continue;
             var jogo = new Jogo { Nome = nome, Ano = ano, Famoso = true };
+            foreach (var slug in generoSlugs)
+                if (generosPorSlug.TryGetValue(slug, out var genero))
+                    jogo.Generos.Add(genero);
+            novos.Add(jogo);
+        }
+
+        if (novos.Count > 0)
+        {
+            db.Jogos.AddRange(novos);
+            await db.SaveChangesAsync();
+        }
+    }
+
+    /// <summary>Jogos do backlog pessoal (não aparecem no grid de onboarding, só ficam no catálogo para marcação via biblioteca).</summary>
+    private static readonly (string Nome, int Ano, string[] Generos)[] JogosBacklogPessoal =
+    {
+        ("Persona 5 Royal", 2019, new[] { "jrpg", "rpg" }),
+        ("Digimon Story: Time Stranger", 2025, new[] { "jrpg", "rpg" }),
+        ("Final Fantasy X-2", 2003, new[] { "jrpg", "rpg" }),
+    };
+
+    private static async Task SeedJogosPessoaisAsync(ZereiDbContext db)
+    {
+        var generosPorSlug = await db.Generos.ToDictionaryAsync(g => g.Slug);
+        var existentesSet = (await db.Jogos.Select(j => j.Nome).ToListAsync()).ToHashSet();
+
+        var novos = new List<Jogo>();
+        foreach (var (nome, ano, generoSlugs) in JogosBacklogPessoal)
+        {
+            if (existentesSet.Contains(nome)) continue;
+            var jogo = new Jogo { Nome = nome, Ano = ano, Famoso = false };
             foreach (var slug in generoSlugs)
                 if (generosPorSlug.TryGetValue(slug, out var genero))
                     jogo.Generos.Add(genero);
