@@ -30,3 +30,22 @@ const STATUS_MAP = new Map<number, StatusInfo>(STATUS_LISTA.map((s) => [s.valor,
 export function statusInfo(valor: number): StatusInfo {
   return STATUS_MAP.get(valor) ?? STATUS_LISTA[0];
 }
+
+/**
+ * A API agora serializa StatusJogo como string (ex.: "Zerado"), não mais como número.
+ * Isso muda o formato só na resposta — o corpo enviado em requisições continua aceitando número.
+ * Essa função normaliza de volta pra número na borda (services), pra nada mais no Angular precisar mudar.
+ */
+const NOME_PARA_VALOR: Record<string, StatusJogo> = {
+  QueroJogar: StatusJogo.QueroJogar,
+  Jogando: StatusJogo.Jogando,
+  Jogado: StatusJogo.Jogado,
+  Zerado: StatusJogo.Zerado,
+  CemPorcento: StatusJogo.CemPorcento,
+  Platinado: StatusJogo.Platinado,
+  Abandonado: StatusJogo.Abandonado,
+};
+
+export function normalizarStatus(valor: number | string): number {
+  return typeof valor === 'string' ? (NOME_PARA_VALOR[valor] ?? 0) : valor;
+}
