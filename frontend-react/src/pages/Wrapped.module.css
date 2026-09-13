@@ -1,0 +1,120 @@
+.card {
+  width: 380px;
+  padding: 36px 28px;
+  border-radius: 24px;
+  background: linear-gradient(160deg, #5b3df0 0%, #2f1e8f 55%, #150c3d 100%);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.brand {
+  align-self: flex-start;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.brand span {
+  color: #ffd166;
+}
+
+.kicker {
+  margin-top: 28px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.heroNum {
+  font-size: 76px;
+  font-weight: 900;
+  letter-spacing: -2px;
+  margin-top: 8px;
+  line-height: 1;
+  background: linear-gradient(90deg, #ffffff, #d9d2ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.heroLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: 100%;
+  margin-top: 26px;
+}
+.stat {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 14px 6px;
+}
+.statNum {
+  font-size: 24px;
+  font-weight: 800;
+}
+.statLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.destaques {
+  width: 100%;
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.destaque {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+.destaque span {
+  color: rgba(255, 255, 255, 0.6);
+}
+.destaque strong {
+  font-weight: 700;
+}
+
+.capas {
+  display: flex;
+  gap: 6px;
+  margin-top: 22px;
+  width: 100%;
+  justify-content: center;
+}
+.capa {
+  width: 52px;
+  height: 70px;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.footer {
+  margin-top: 24px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 600;
+}
