@@ -7,7 +7,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import {
   IconArrowLeft, IconBookmark, IconDeviceGamepad2, IconHeart, IconHeartFilled, IconInfoCircle, IconPlayerPlay,
-  IconPlus, IconTrash,
+  IconPlus, IconStarFilled, IconTrash,
 } from '@tabler/icons-react';
 import { useJogo, usePlataformas } from '../api/catalogo';
 import {
@@ -17,6 +17,7 @@ import {
 import { extractError } from '../api/client';
 import { StatusIcon } from '../components/StatusIcon';
 import { STATUS_LISTA, StatusJogo } from '../types/status';
+import { corMetacritic, corNota5, corNota10 } from '../utils/nota';
 
 const DEZ = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
@@ -31,13 +32,6 @@ function corFundo(nome: string): string {
   for (let i = 0; i < nome.length; i++) h = nome.charCodeAt(i) + ((h << 5) - h);
   const hue = Math.abs(h) % 360;
   return `linear-gradient(150deg, hsl(${hue}, 45%, 30%), hsl(${(hue + 40) % 360}, 42%, 16%))`;
-}
-
-/** Convenção de cor do próprio Metacritic: verde ≥75, amarelo 50-74, vermelho <50. */
-function corMetacritic(nota: number): string {
-  if (nota >= 75) return '#6c3';
-  if (nota >= 50) return '#fc3';
-  return '#f00';
 }
 
 function formRejogadaVazio(): NovaJogatina {
@@ -260,6 +254,25 @@ export function JogoDetalhe() {
                 styles={{ root: { backgroundColor: corMetacritic(jogo.metacritic), color: '#111' } }}
               >
                 Metacritic {jogo.metacritic}
+              </Badge>
+            )}
+            {!!jogo.notaComunidade && (
+              <Badge
+                variant="filled"
+                leftSection={<IconStarFilled size={11} />}
+                styles={{ root: { backgroundColor: corNota5(jogo.notaComunidade), color: '#111' } }}
+              >
+                RAWG {jogo.notaComunidade.toFixed(1)}
+                {!!jogo.notaComunidadeContagem && ` (${jogo.notaComunidadeContagem})`}
+              </Badge>
+            )}
+            {!!uj?.nota && (
+              <Badge
+                variant="filled"
+                leftSection={<IconStarFilled size={11} />}
+                styles={{ root: { backgroundColor: corNota10(uj.nota), color: '#111' } }}
+              >
+                Sua nota {uj.nota}
               </Badge>
             )}
           </Group>

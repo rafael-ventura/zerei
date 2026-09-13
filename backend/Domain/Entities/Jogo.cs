@@ -21,6 +21,13 @@ public class Jogo
     /// <summary>Tempo médio pra zerar, em horas (média da comunidade RAWG/Steam) — não é o tempo pessoal do usuário.</summary>
     public double? TempoMedioHoras { get; set; }
 
+    /// <summary>Nota média dos usuários da RAWG (0-5), agregada de milhares de avaliações — distinta do Metacritic (crítica especializada).</summary>
+    public double? NotaComunidade { get; set; }
+    public int? NotaComunidadeContagem { get; set; }
+
+    /// <summary>Marca que já consultamos a RAWG por uma nota (mesmo que ela não tenha retornado nenhuma) — evita reprocessar pra sempre jogos sem avaliações suficientes.</summary>
+    public DateTime? NotaComunidadeVerificadaEm { get; set; }
+
     /// <summary>Se true, este registro é uma DLC/expansão de <see cref="JogoBase"/>.</summary>
     public bool EhDlc { get; set; }
     public int? JogoBaseId { get; set; }

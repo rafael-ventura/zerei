@@ -43,4 +43,9 @@ public class CatalogoController : ControllerBase
     [HttpPost("sincronizar-capas")]
     public async Task<ActionResult> SincronizarCapas() =>
         Ok(new { atualizadas = await _catalogo.EnriquecerCapasAsync() });
+
+    [Authorize]
+    [HttpPost("sincronizar-notas")]
+    public async Task<ActionResult> SincronizarNotas() =>
+        Ok(new { atualizadas = await _catalogo.EnriquecerNotasAsync() });
 }

@@ -8,6 +8,7 @@ public static class Mapeamentos
 {
     public static JogoDto ToDto(Jogo j) =>
         new(j.Id, j.Nome, j.Ano, j.CapaUrl, j.Generos?.Select(g => g.Nome).ToList() ?? new(), j.Metacritic, j.TempoMedioHoras,
+            j.NotaComunidade, j.NotaComunidadeContagem,
             j.PlataformasDisponiveis?.Select(p => p.Nome).ToList() ?? new(),
             j.Dlcs?.Select(d => new DlcResumoDto(d.Id, d.Nome, d.CapaUrl)).ToList() ?? new());
 

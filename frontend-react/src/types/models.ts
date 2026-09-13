@@ -29,6 +29,8 @@ export interface Jogo {
   generos: string[];
   metacritic?: number | null;
   tempoMedioHoras?: number | null;
+  notaComunidade?: number | null;
+  notaComunidadeContagem?: number | null;
   plataformasDisponiveis: string[];
   dlcs: DlcResumo[];
 }

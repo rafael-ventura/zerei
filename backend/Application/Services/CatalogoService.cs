@@ -80,6 +80,9 @@ public class CatalogoService
                     RawgSlug = r.Slug,
                     Metacritic = r.Metacritic,
                     TempoMedioHoras = r.TempoMedioHoras,
+                    NotaComunidade = r.NotaComunidade,
+                    NotaComunidadeContagem = r.NotaComunidadeContagem,
+                    NotaComunidadeVerificadaEm = DateTime.UtcNow,
                 };
                 foreach (var nomeGenero in r.Generos)
                     jogo.Generos.Add(await ObterOuCriarGeneroAsync(nomeGenero, generoCache));
@@ -130,6 +133,9 @@ public class CatalogoService
             jogo.RawgSlug ??= r.Slug;
             jogo.Metacritic ??= r.Metacritic;
             jogo.TempoMedioHoras ??= r.TempoMedioHoras;
+            jogo.NotaComunidade ??= r.NotaComunidade;
+            jogo.NotaComunidadeContagem ??= r.NotaComunidadeContagem;
+            jogo.NotaComunidadeVerificadaEm ??= DateTime.UtcNow;
             foreach (var nomeGenero in r.Generos)
             {
                 var genero = await ObterOuCriarGeneroAsync(nomeGenero, generoCache);
@@ -140,6 +146,31 @@ public class CatalogoService
                 var plataforma = await ObterOuCriarPlataformaAsync(nomePlataforma, plataformaCache);
                 if (!jogo.PlataformasDisponiveis.Contains(plataforma)) jogo.PlataformasDisponiveis.Add(plataforma);
             }
+            atualizadas++;
+        }
+        await _db.SaveChangesAsync();
+        return atualizadas;
+    }
+
+    /// <summary>Preenche a nota de comunidade (RAWG, 0-5) dos jogos já importados que ainda não têm (idempotente).</summary>
+    public async Task<int> EnriquecerNotasAsync(int max = 100)
+    {
+        if (!_rawg.Configurado) return 0;
+
+        var semNota = await _db.Jogos
+            .Where(j => j.RawgId != null && j.NotaComunidadeVerificadaEm == null)
+            .OrderBy(j => j.Id).Take(max).ToListAsync();
+
+        var atualizadas = 0;
+        foreach (var jogo in semNota)
+        {
+            var r = await _rawg.PorIdAsync(jogo.RawgId!.Value);
+            if (r is null) continue; // falha transitória (rede/rate limit) — tenta de novo na próxima sincronização
+            jogo.NotaComunidade = r.NotaComunidade;
+            jogo.NotaComunidadeContagem = r.NotaComunidadeContagem;
+            jogo.NotaComunidadeVerificadaEm = DateTime.UtcNow;
+            jogo.Metacritic ??= r.Metacritic;
+            jogo.TempoMedioHoras ??= r.TempoMedioHoras;
             atualizadas++;
         }
         await _db.SaveChangesAsync();

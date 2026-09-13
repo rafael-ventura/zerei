@@ -1,6 +1,7 @@
 import { IconCheck, IconClockHour4, IconStarFilled } from '@tabler/icons-react';
 import type { Jogo } from '../types/models';
 import { badgeInfo } from '../types/status';
+import { corNota5 } from '../utils/nota';
 import { StatusIcon } from './StatusIcon';
 import styles from './JogoCard.module.css';
 
@@ -53,6 +54,12 @@ export function JogoCard({
         {!!nota && (
           <span className={styles.nota}>
             <IconStarFilled size={10} /> {nota}
+          </span>
+        )}
+
+        {!nota && !!jogo.notaComunidade && (
+          <span className={styles.nota} style={{ color: corNota5(jogo.notaComunidade) }}>
+            <IconStarFilled size={10} /> {jogo.notaComunidade.toFixed(1)}
           </span>
         )}
 

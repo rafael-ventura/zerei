@@ -29,7 +29,8 @@ public class PerfilService
         var todasJogatinas = ujs.SelectMany(x => x.Jogatinas).ToList();
         var totalHoras = Math.Round(todasJogatinas.Sum(j => j.Horas ?? 0), 1);
 
-        var notas = ujs.Where(x => x.Nota.HasValue).Select(x => x.Nota!.Value).ToList();
+        // 0 é o valor usado pra "limpar" a nota (ver BibliotecaService.AtualizarAsync) — não é uma nota real.
+        var notas = ujs.Where(x => x.Nota is > 0).Select(x => x.Nota!.Value).ToList();
         double? notaMedia = notas.Count > 0 ? Math.Round(notas.Average(), 1) : null;
 
         var comPlataforma = todasJogatinas.Where(j => j.Plataforma != null).ToList();

@@ -10,7 +10,8 @@ public class RawgOptions
 
 public record RawgJogo(
     int? RawgId, string Nome, string? Slug, int? Ano, string? CapaUrl,
-    List<string> Generos, List<string> Plataformas, int? Metacritic, double? TempoMedioHoras);
+    List<string> Generos, List<string> Plataformas, int? Metacritic, double? TempoMedioHoras,
+    double? NotaComunidade, int? NotaComunidadeContagem);
 
 public record RawgDlc(int RawgId, string Nome, string? Slug, int? Ano, string? CapaUrl);
 
@@ -61,6 +62,27 @@ public class RawgService
     public async Task<RawgJogo?> PorNomeAsync(string nome) =>
         (await BuscarAsync(nome, 1)).FirstOrDefault();
 
+    /// <summary>Busca exata por RawgId (endpoint /games/{id}) — mais preciso que busca por nome pra reconsultar um jogo já importado.</summary>
+    public async Task<RawgJogo?> PorIdAsync(int rawgId)
+    {
+        if (!Configurado) return null;
+        try
+        {
+            var url = $"{_opt.BaseUrl}/games/{rawgId}?key={_opt.ApiKey}";
+            using var resp = await _http.GetAsync(url);
+            if (!resp.IsSuccessStatusCode) return null;
+
+            await using var stream = await resp.Content.ReadAsStreamAsync();
+            using var doc = await JsonDocument.ParseAsync(stream);
+            return MapJogo(doc.RootElement);
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Falha ao consultar a RAWG pelo id {RawgId}", rawgId);
+            return null;
+        }
+    }
+
     /// <summary>DLCs/expansões de um jogo (endpoint /games/{id}/additions — disponível no tier grátis).</summary>
     public async Task<List<RawgDlc>> BuscarDlcsAsync(int rawgId)
     {
@@ -106,6 +128,10 @@ public class RawgService
             ? mEl.GetInt32() : null;
         double? tempoMedio = item.TryGetProperty("playtime", out var tEl) && tEl.ValueKind == JsonValueKind.Number && tEl.GetDouble() > 0
             ? tEl.GetDouble() : null;
+        double? notaComunidade = item.TryGetProperty("rating", out var raEl) && raEl.ValueKind == JsonValueKind.Number && raEl.GetDouble() > 0
+            ? raEl.GetDouble() : null;
+        int? notaComunidadeContagem = item.TryGetProperty("ratings_count", out var rcEl) && rcEl.ValueKind == JsonValueKind.Number
+            ? rcEl.GetInt32() : null;
 
         var generos = new List<string>();
         if (item.TryGetProperty("genres", out var gEl) && gEl.ValueKind == JsonValueKind.Array)
@@ -119,6 +145,6 @@ public class RawgService
                 if (p.TryGetProperty("platform", out var pfEl) && pfEl.TryGetProperty("name", out var pnEl) && pnEl.GetString() is string pn)
                     plataformas.Add(pn);
 
-        return new RawgJogo(id, nome, slug, ano, capa, generos, plataformas, metacritic, tempoMedio);
+        return new RawgJogo(id, nome, slug, ano, capa, generos, plataformas, metacritic, tempoMedio, notaComunidade, notaComunidadeContagem);
     }
 }
