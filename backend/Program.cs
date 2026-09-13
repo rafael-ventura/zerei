@@ -10,7 +10,11 @@ using Zerei.Infrastructure.External;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.AddServiceDefaults();
+
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -26,6 +30,7 @@ var rawgOptions = new RawgOptions
 };
 builder.Services.AddSingleton(rawgOptions);
 builder.Services.AddHttpClient<RawgService>();
+builder.Services.AddHttpClient<Zerei.Api.Controllers.ImagemProxyController>();
 
 // Serviços de aplicação
 builder.Services.AddScoped<JwtService>();
@@ -33,6 +38,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<CatalogoService>();
 builder.Services.AddScoped<BibliotecaService>();
 builder.Services.AddScoped<PerfilService>();
+builder.Services.AddScoped<SeguidorService>();
 
 // Autenticação JWT
 var jwtSecret = builder.Configuration["Jwt:Secret"]
@@ -53,9 +59,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 
-// CORS para o front Angular
+// CORS para os fronts (Angular em transição + React novo)
 builder.Services.AddCors(o => o.AddPolicy("frontend", p =>
-    p.WithOrigins("http://localhost:4200").AllowAnyHeader().AllowAnyMethod()));
+    p.WithOrigins("http://localhost:4200", "http://localhost:5173").AllowAnyHeader().AllowAnyMethod()));
 
 var app = builder.Build();
 
@@ -65,20 +71,7 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<ZereiDbContext>();
     db.Database.Migrate();
     await SeedData.SeedAsync(db);
-
-    if (!string.IsNullOrWhiteSpace(rawgOptions.ApiKey))
-    {
-        try
-        {
-            var catalogo = scope.ServiceProvider.GetRequiredService<CatalogoService>();
-            var n = await catalogo.EnriquecerCapasAsync();
-            app.Logger.LogInformation("RAWG: {N} capas preenchidas.", n);
-        }
-        catch (Exception ex)
-        {
-            app.Logger.LogWarning(ex, "Não foi possível enriquecer capas via RAWG.");
-        }
-    }
+    // RAWG (capas/metadados) não roda mais aqui — usar POST /api/catalogo/sincronizar-capas sob demanda.
 }
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
@@ -93,5 +86,6 @@ app.UseCors("frontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapDefaultEndpoints();
 
 app.Run();
