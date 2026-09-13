@@ -30,3 +30,21 @@ const STATUS_MAP = new Map<number, StatusInfo>(STATUS_LISTA.map((s) => [s.valor,
 export function statusInfo(valor: number | null | undefined): StatusInfo {
   return STATUS_MAP.get(valor ?? 0) ?? STATUS_LISTA[0];
 }
+
+/**
+ * A API serializa StatusJogo como string (ex.: "Zerado"). Normaliza de volta pra número
+ * na borda (hooks de api/), pra todo o resto do app continuar comparando por número.
+ */
+const NOME_PARA_VALOR: Record<string, StatusJogo> = {
+  QueroJogar: StatusJogo.QueroJogar,
+  Jogando: StatusJogo.Jogando,
+  Jogado: StatusJogo.Jogado,
+  Zerado: StatusJogo.Zerado,
+  CemPorcento: StatusJogo.CemPorcento,
+  Platinado: StatusJogo.Platinado,
+  Abandonado: StatusJogo.Abandonado,
+};
+
+export function normalizarStatus(valor: number | string): number {
+  return typeof valor === 'string' ? (NOME_PARA_VALOR[valor] ?? 0) : valor;
+}

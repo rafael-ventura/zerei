@@ -44,6 +44,11 @@ export function JogoDetalhe() {
   const [dialogAberto, setDialogAberto] = useState(false);
   const [form, setForm] = useState<NovaJogatina>(formVazio());
 
+  const [confirmAberto, setConfirmAberto] = useState(false);
+  const [statusAlvo, setStatusAlvo] = useState<number | null>(null);
+  const [horasConfirm, setHorasConfirm] = useState<number | null>(null);
+  const [tambemPlatinei, setTambemPlatinei] = useState(false);
+
   const marcar = useMarcar();
   const atualizar = useAtualizarBiblioteca();
   const adicionarJogatina = useAdicionarJogatina();
@@ -59,14 +64,46 @@ export function JogoDetalhe() {
     notifications.show({ color: 'red', title: 'Ops', message: extractError(e, 'Algo deu errado.') });
   }
 
-  async function definirStatus(status: number) {
+  function temHorasRegistradas(): boolean {
+    return !!uj?.jogatinas.some((jt) => jt.horas);
+  }
+
+  async function aplicarStatus(status: number, horas?: number | null) {
     try {
       const novo = await marcar.mutateAsync({ jogoId, status });
       setUj(novo);
       setResenha(novo.resenha ?? '');
+      if (horas) {
+        const jt = await adicionarJogatina.mutateAsync({
+          usuarioJogoId: novo.id,
+          body: { plataformaId: null, ano: null, horas, status, ehRejogada: false, observacao: null },
+        });
+        setUj((atual) => (atual ? { ...atual, jogatinas: [jt, ...atual.jogatinas] } : atual));
+      }
     } catch (e) {
       erro(e);
     }
+  }
+
+  async function definirStatus(status: number) {
+    // Zerado/Platinado: se ainda não tem horas registradas, pergunta antes de aplicar
+    // (dá pra registrar horas em qualquer status, isso aqui é só um atalho de conveniência).
+    const ehConclusao = status === StatusJogo.Zerado || status === StatusJogo.Platinado;
+    if (ehConclusao && !temHorasRegistradas()) {
+      setStatusAlvo(status);
+      setHorasConfirm(null);
+      setTambemPlatinei(status === StatusJogo.Platinado);
+      setConfirmAberto(true);
+      return;
+    }
+    await aplicarStatus(status);
+  }
+
+  async function confirmarConclusao() {
+    if (statusAlvo === null) return;
+    const statusFinal = tambemPlatinei ? StatusJogo.Platinado : statusAlvo;
+    await aplicarStatus(statusFinal, horasConfirm);
+    setConfirmAberto(false);
   }
 
   async function toggleFavorito() {
@@ -340,6 +377,32 @@ export function JogoDetalhe() {
           <Group justify="flex-end" mt="sm">
             <Button variant="subtle" color="gray" onClick={() => setDialogAberto(false)}>Cancelar</Button>
             <Button onClick={salvarJogatina} loading={adicionarJogatina.isPending}>Salvar</Button>
+          </Group>
+        </Stack>
+      </Modal>
+      <Modal
+        opened={confirmAberto}
+        onClose={() => setConfirmAberto(false)}
+        title={statusAlvo === StatusJogo.Platinado ? 'Platinar jogo' : 'Zerar jogo'}
+        centered
+      >
+        <Stack>
+          <NumberInput
+            label="Quantas horas você levou? (opcional)"
+            placeholder="ex: 40"
+            value={horasConfirm ?? ''}
+            onChange={(v) => setHorasConfirm(v === '' ? null : Number(v))}
+          />
+          {statusAlvo === StatusJogo.Zerado && (
+            <Checkbox
+              label="Também platinei"
+              checked={tambemPlatinei}
+              onChange={(e) => setTambemPlatinei(e.currentTarget.checked)}
+            />
+          )}
+          <Group justify="flex-end" mt="sm">
+            <Button variant="subtle" color="gray" onClick={() => setConfirmAberto(false)}>Cancelar</Button>
+            <Button onClick={confirmarConclusao} loading={marcar.isPending || adicionarJogatina.isPending}>Salvar</Button>
           </Group>
         </Stack>
       </Modal>

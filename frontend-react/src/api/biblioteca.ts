@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
 import type { Jogatina, UsuarioJogo } from '../types/models';
+import { normalizarStatus } from '../types/status';
 
 export interface NovaJogatina {
   plataformaId?: number | null;
@@ -18,11 +19,25 @@ export interface AtualizarBiblioteca {
   resenha?: string | null;
 }
 
+export function normalizarJogatina(jt: Jogatina): Jogatina {
+  return { ...jt, status: normalizarStatus(jt.status) };
+}
+
+export function normalizarUsuarioJogo(uj: UsuarioJogo): UsuarioJogo {
+  return {
+    ...uj,
+    status: normalizarStatus(uj.status),
+    jogatinas: (uj.jogatinas ?? []).map(normalizarJogatina),
+  };
+}
+
 export function useBiblioteca(status?: number | null) {
   return useQuery({
     queryKey: ['biblioteca', status ?? null],
-    queryFn: async () =>
-      (await api.get<UsuarioJogo[]>('/biblioteca', { params: status != null ? { status } : undefined })).data,
+    queryFn: async () => {
+      const { data } = await api.get<UsuarioJogo[]>('/biblioteca', { params: status != null ? { status } : undefined });
+      return data.map(normalizarUsuarioJogo);
+    },
   });
 }
 
@@ -32,7 +47,7 @@ export function usePorJogo(jogoId: number | null) {
     queryFn: async () => {
       try {
         const { data } = await api.get<UsuarioJogo>(`/biblioteca/jogo/${jogoId}`);
-        return data;
+        return normalizarUsuarioJogo(data);
       } catch {
         return null;
       }
@@ -51,8 +66,10 @@ function invalidateBiblioteca(qc: ReturnType<typeof useQueryClient>) {
 export function useMarcar() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ jogoId, status }: { jogoId: number; status: number }) =>
-      (await api.post<UsuarioJogo>('/biblioteca/marcar', { jogoId, status })).data,
+    mutationFn: async ({ jogoId, status }: { jogoId: number; status: number }) => {
+      const { data } = await api.post<UsuarioJogo>('/biblioteca/marcar', { jogoId, status });
+      return normalizarUsuarioJogo(data);
+    },
     onSuccess: () => invalidateBiblioteca(qc),
   });
 }
@@ -69,8 +86,10 @@ export function useMarcarLote() {
 export function useAtualizarBiblioteca() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ usuarioJogoId, body }: { usuarioJogoId: number; body: AtualizarBiblioteca }) =>
-      (await api.put<UsuarioJogo>(`/biblioteca/${usuarioJogoId}`, body)).data,
+    mutationFn: async ({ usuarioJogoId, body }: { usuarioJogoId: number; body: AtualizarBiblioteca }) => {
+      const { data } = await api.put<UsuarioJogo>(`/biblioteca/${usuarioJogoId}`, body);
+      return normalizarUsuarioJogo(data);
+    },
     onSuccess: () => invalidateBiblioteca(qc),
   });
 }
@@ -86,8 +105,10 @@ export function useRemoverDaBiblioteca() {
 export function useAdicionarJogatina() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ usuarioJogoId, body }: { usuarioJogoId: number; body: NovaJogatina }) =>
-      (await api.post<Jogatina>(`/biblioteca/${usuarioJogoId}/jogatinas`, body)).data,
+    mutationFn: async ({ usuarioJogoId, body }: { usuarioJogoId: number; body: NovaJogatina }) => {
+      const { data } = await api.post<Jogatina>(`/biblioteca/${usuarioJogoId}/jogatinas`, body);
+      return normalizarJogatina(data);
+    },
     onSuccess: () => invalidateBiblioteca(qc),
   });
 }
