@@ -18,3 +18,7 @@ public record EstatisticasDto(
 );
 
 public record PerfilDto(UsuarioResumoDto Usuario, EstatisticasDto Estatisticas, List<UsuarioJogoDto> Favoritos);
+
+public record PerfilPublicoDto(
+    UsuarioPublicoDto Usuario, EstatisticasDto Estatisticas, List<UsuarioJogoDto> Favoritos,
+    int Seguidores, int Seguindo, bool VoceSegue);

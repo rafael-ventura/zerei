@@ -64,7 +64,30 @@ public class PerfilService
             ?? throw new KeyNotFoundException("Usuário não encontrado.");
 
         var stats = await EstatisticasAsync(usuarioId);
+        var favoritos = await FavoritosAsync(usuarioId);
 
+        return new PerfilDto(AuthService.ToResumo(usuario), stats, favoritos);
+    }
+
+    /// <summary>Perfil público de outro usuário (por username) — sem e-mail, com contadores de seguidores/seguindo.</summary>
+    public async Task<PerfilPublicoDto?> PerfilPublicoAsync(string username, int? chamadorId)
+    {
+        var usuario = await _db.Usuarios.FirstOrDefaultAsync(u => u.Username == username.Trim().ToLowerInvariant());
+        if (usuario is null) return null;
+
+        var stats = await EstatisticasAsync(usuario.Id);
+        var favoritos = await FavoritosAsync(usuario.Id);
+        var seguidores = await _db.Seguidores.CountAsync(s => s.SeguidoId == usuario.Id);
+        var seguindo = await _db.Seguidores.CountAsync(s => s.SeguidorId == usuario.Id);
+        var voceSegue = chamadorId.HasValue &&
+            await _db.Seguidores.AnyAsync(s => s.SeguidorId == chamadorId.Value && s.SeguidoId == usuario.Id);
+
+        var usuarioPublico = new UsuarioPublicoDto(usuario.Id, usuario.Nome, usuario.Username, usuario.FotoUrl, usuario.Bio);
+        return new PerfilPublicoDto(usuarioPublico, stats, favoritos, seguidores, seguindo, voceSegue);
+    }
+
+    private async Task<List<UsuarioJogoDto>> FavoritosAsync(int usuarioId)
+    {
         var favoritos = await _db.UsuarioJogos
             .Where(uj => uj.UsuarioId == usuarioId && uj.Favorito)
             .Include(uj => uj.Jogo).ThenInclude(j => j.Generos)
@@ -72,8 +95,7 @@ public class PerfilService
             .OrderByDescending(uj => uj.AtualizadoEm)
             .Take(8)
             .ToListAsync();
-
-        return new PerfilDto(AuthService.ToResumo(usuario), stats, favoritos.Select(Mapeamentos.ToDto).ToList());
+        return favoritos.Select(Mapeamentos.ToDto).ToList();
     }
 
     public static string StatusLabel(StatusJogo s) => s switch
