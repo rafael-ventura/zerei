@@ -13,6 +13,7 @@ public class ZereiDbContext : DbContext
     public DbSet<Plataforma> Plataformas => Set<Plataforma>();
     public DbSet<UsuarioJogo> UsuarioJogos => Set<UsuarioJogo>();
     public DbSet<Jogatina> Jogatinas => Set<Jogatina>();
+    public DbSet<Seguidor> Seguidores => Set<Seguidor>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -44,6 +45,10 @@ public class ZereiDbContext : DbContext
         {
             e.Property(j => j.Nome).HasMaxLength(200);
             e.HasIndex(j => j.RawgId).IsUnique().HasFilter("\"RawgId\" IS NOT NULL");
+            e.HasOne(j => j.JogoBase)
+                .WithMany(j => j.Dlcs)
+                .HasForeignKey(j => j.JogoBaseId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         mb.Entity<UsuarioJogo>(e =>
@@ -69,6 +74,19 @@ public class ZereiDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(j => j.PlataformaId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        mb.Entity<Seguidor>(e =>
+        {
+            e.HasIndex(s => new { s.SeguidorId, s.SeguidoId }).IsUnique();
+            e.HasOne(s => s.SeguidorUsuario)
+                .WithMany()
+                .HasForeignKey(s => s.SeguidorId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(s => s.SeguidoUsuario)
+                .WithMany()
+                .HasForeignKey(s => s.SeguidoId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

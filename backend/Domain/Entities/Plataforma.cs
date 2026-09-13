@@ -8,4 +8,7 @@ public class Plataforma
 
     /// <summary>Família para agrupar estatísticas: Nintendo, PlayStation, Xbox, PC, Sega, Mobile, Outros.</summary>
     public string Familia { get; set; } = "Outros";
+
+    /// <summary>Jogos que foram lançados nesta plataforma (dado de catálogo, vindo da RAWG) — distinto da plataforma pessoal em <see cref="Jogatina"/> (onde o usuário jogou).</summary>
+    public List<Jogo> JogosDisponiveis { get; set; } = new();
 }

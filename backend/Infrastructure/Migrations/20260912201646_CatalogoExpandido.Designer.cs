@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Zerei.Infrastructure.Data;
@@ -11,9 +12,11 @@ using Zerei.Infrastructure.Data;
 namespace Zerei.Infrastructure.Migrations
 {
     [DbContext(typeof(ZereiDbContext))]
-    partial class ZereiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260912201646_CatalogoExpandido")]
+    partial class CatalogoExpandido
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -209,33 +212,6 @@ namespace Zerei.Infrastructure.Migrations
                     b.ToTable("Plataformas");
                 });
 
-            modelBuilder.Entity("Zerei.Domain.Entities.Seguidor", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CriadoEm")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("SeguidoId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("SeguidorId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SeguidoId");
-
-                    b.HasIndex("SeguidorId", "SeguidoId")
-                        .IsUnique();
-
-                    b.ToTable("Seguidores");
-                });
-
             modelBuilder.Entity("Zerei.Domain.Entities.Usuario", b =>
                 {
                     b.Property<int>("Id")
@@ -388,25 +364,6 @@ namespace Zerei.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("JogoBase");
-                });
-
-            modelBuilder.Entity("Zerei.Domain.Entities.Seguidor", b =>
-                {
-                    b.HasOne("Zerei.Domain.Entities.Usuario", "SeguidoUsuario")
-                        .WithMany()
-                        .HasForeignKey("SeguidoId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Zerei.Domain.Entities.Usuario", "SeguidorUsuario")
-                        .WithMany()
-                        .HasForeignKey("SeguidorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("SeguidoUsuario");
-
-                    b.Navigation("SeguidorUsuario");
                 });
 
             modelBuilder.Entity("Zerei.Domain.Entities.UsuarioJogo", b =>
