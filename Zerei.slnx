@@ -1,4 +1,6 @@
 <Solution>
   <Project Path="backend.Tests/backend.Tests.csproj" />
   <Project Path="backend/backend.csproj" />
+  <Project Path="Zerei.AppHost/Zerei.AppHost.csproj" />
+  <Project Path="Zerei.ServiceDefaults/Zerei.ServiceDefaults.csproj" />
 </Solution>
