@@ -7,6 +7,7 @@ import { useDeixarDeSeguir, useSeguir } from '../api/seguidor';
 import { useAuth } from '../context/AuthContext';
 import { extractError } from '../api/client';
 import { JogoCard } from '../components/JogoCard';
+import { somarHoras } from '../utils/jogo';
 
 function inicial(nome: string): string {
   return (nome?.trim()?.charAt(0) || '?').toUpperCase();
@@ -81,7 +82,17 @@ export function PerfilPublico() {
           <Text fw={700} mb="md">Favoritos</Text>
           <SimpleGrid cols={{ base: 3, sm: 4, md: 6 }} spacing="md">
             {favoritos.map((uj) => (
-              <JogoCard key={uj.id} jogo={uj.jogo} status={uj.status} nota={uj.nota} mostrarNome />
+              <JogoCard
+                key={uj.id}
+                jogo={uj.jogo}
+                status={uj.status}
+                zerado={uj.zerado}
+                platinado={uj.platinado}
+                abandonado={uj.abandonado}
+                nota={uj.nota}
+                horas={somarHoras(uj)}
+                mostrarNome
+              />
             ))}
           </SimpleGrid>
         </div>

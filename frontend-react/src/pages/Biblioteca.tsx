@@ -1,17 +1,47 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ActionIcon, Button, Center, Loader, SimpleGrid, Stack, Text, TextInput, Title } from '@mantine/core';
+import {
+  ActionIcon, Button, Center, Loader, Select, SimpleGrid, Stack, Text, TextInput, Title,
+} from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconBookmark, IconInbox, IconPlus, IconSearch, IconX } from '@tabler/icons-react';
 import { useBiblioteca } from '../api/biblioteca';
 import { useBusca } from '../api/catalogo';
-import { STATUS_LISTA } from '../types/status';
+import { StatusJogo } from '../types/status';
+import type { UsuarioJogo } from '../types/models';
 import { JogoCard } from '../components/JogoCard';
 import { StatusIcon } from '../components/StatusIcon';
+import { somarHoras } from '../utils/jogo';
+
+type FiltroStatus = 'todos' | 'querojogar' | 'jogando' | 'jogado' | 'zerado' | 'platinado' | 'abandonado';
+type Ordenacao = 'recente' | 'mais-jogado' | 'nome';
+
+const FILTROS: { valor: FiltroStatus; label: string; status?: number; zerado?: boolean; platinado?: boolean; abandonado?: boolean }[] = [
+  { valor: 'querojogar', label: 'Quero jogar', status: StatusJogo.QueroJogar },
+  { valor: 'jogando', label: 'Jogando', status: StatusJogo.Jogando },
+  { valor: 'jogado', label: 'Jogado', status: StatusJogo.Jogado },
+  { valor: 'zerado', label: 'Zerados', status: StatusJogo.Jogado, zerado: true },
+  { valor: 'platinado', label: 'Platinados', status: StatusJogo.Jogado, zerado: true, platinado: true },
+  { valor: 'abandonado', label: 'Abandonados', status: StatusJogo.Jogado, abandonado: true },
+];
+
+function aplicaFiltroStatus(uj: UsuarioJogo, filtro: FiltroStatus): boolean {
+  switch (filtro) {
+    case 'todos': return true;
+    case 'querojogar': return uj.status === StatusJogo.QueroJogar;
+    case 'jogando': return uj.status === StatusJogo.Jogando;
+    case 'jogado': return uj.status === StatusJogo.Jogado && !uj.zerado && !uj.abandonado;
+    case 'zerado': return uj.zerado;
+    case 'platinado': return uj.platinado;
+    case 'abandonado': return uj.abandonado;
+  }
+}
 
 export function Biblioteca() {
   const navigate = useNavigate();
-  const [filtro, setFiltro] = useState<number | null>(null);
+  const [filtro, setFiltro] = useState<FiltroStatus>('todos');
+  const [plataformaFiltro, setPlataformaFiltro] = useState<string | null>(null);
+  const [ordenacao, setOrdenacao] = useState<Ordenacao>('recente');
   const [termo, setTermo] = useState('');
   const [termoDebounced] = useDebouncedValue(termo, 350);
 
@@ -19,13 +49,28 @@ export function Biblioteca() {
   const emModoBusca = termoDebounced.trim().length >= 3;
   const { data: resultados = [], isFetching: buscando } = useBusca(termoDebounced);
 
-  const itensFiltrados = useMemo(
-    () => (filtro === null ? itens : itens.filter((i) => i.status === filtro)),
-    [itens, filtro],
-  );
+  const plataformasJogadas = useMemo(() => {
+    const nomes = new Set<string>();
+    itens.forEach((uj) => uj.jogatinas.forEach((jt) => jt.plataforma && nomes.add(jt.plataforma)));
+    return Array.from(nomes).sort();
+  }, [itens]);
 
-  function contagem(status: number): number {
-    return itens.filter((i) => i.status === status).length;
+  const itensFiltrados = useMemo(() => {
+    let lista = itens.filter((uj) => aplicaFiltroStatus(uj, filtro));
+    if (plataformaFiltro) {
+      lista = lista.filter((uj) => uj.jogatinas.some((jt) => jt.plataforma === plataformaFiltro));
+    }
+    if (ordenacao === 'mais-jogado') {
+      lista = [...lista].sort((a, b) => somarHoras(b) - somarHoras(a));
+    } else if (ordenacao === 'nome') {
+      lista = [...lista].sort((a, b) => a.jogo.nome.localeCompare(b.jogo.nome));
+    }
+    // 'recente' já é a ordem que a API devolve (por AtualizadoEm desc) — não precisa reordenar.
+    return lista;
+  }, [itens, filtro, plataformaFiltro, ordenacao]);
+
+  function contagem(filtro: FiltroStatus): number {
+    return itens.filter((uj) => aplicaFiltroStatus(uj, filtro)).length;
   }
 
   function abrir(jogoId: number) {
@@ -70,12 +115,48 @@ export function Biblioteca() {
         </div>
       ) : (
         <>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
-            <Chip ativo={filtro === null} onClick={() => setFiltro(null)} label="Todos" n={itens.length} />
-            {STATUS_LISTA.map((s) => contagem(s.valor) > 0 && (
-              <Chip key={s.valor} ativo={filtro === s.valor} onClick={() => setFiltro(s.valor)} label={s.label} n={contagem(s.valor)} status={s.valor} />
-            ))}
-          </div>
+          <Stack gap="sm">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
+              <Chip ativo={filtro === 'todos'} onClick={() => setFiltro('todos')} label="Todos" n={itens.length} />
+              {FILTROS.map((f) => contagem(f.valor) > 0 && (
+                <Chip
+                  key={f.valor}
+                  ativo={filtro === f.valor}
+                  onClick={() => setFiltro(f.valor)}
+                  label={f.label}
+                  n={contagem(f.valor)}
+                  status={f.status}
+                  zerado={f.zerado}
+                  platinado={f.platinado}
+                  abandonado={f.abandonado}
+                />
+              ))}
+            </div>
+
+            {plataformasJogadas.length > 0 && (
+              <Select
+                placeholder="Filtrar por plataforma"
+                w={220}
+                clearable
+                data={plataformasJogadas}
+                value={plataformaFiltro}
+                onChange={setPlataformaFiltro}
+              />
+            )}
+
+            <Select
+              label="Ordenar por"
+              w={220}
+              data={[
+                { value: 'recente', label: 'Jogados recentemente' },
+                { value: 'mais-jogado', label: 'Mais jogados (horas)' },
+                { value: 'nome', label: 'Nome (A-Z)' },
+              ]}
+              value={ordenacao}
+              onChange={(v) => setOrdenacao((v as Ordenacao) ?? 'recente')}
+              allowDeselect={false}
+            />
+          </Stack>
 
           {isLoading ? (
             <Center mih={200}><Loader /></Center>
@@ -88,7 +169,17 @@ export function Biblioteca() {
           ) : (
             <SimpleGrid cols={{ base: 3, sm: 4, md: 6 }} spacing="md">
               {itensFiltrados.map((uj) => (
-                <JogoCard key={uj.id} jogo={uj.jogo} status={uj.status} nota={uj.nota} onClick={() => abrir(uj.jogo.id)} />
+                <JogoCard
+                  key={uj.id}
+                  jogo={uj.jogo}
+                  status={uj.status}
+                  zerado={uj.zerado}
+                  platinado={uj.platinado}
+                  abandonado={uj.abandonado}
+                  nota={uj.nota}
+                  horas={somarHoras(uj)}
+                  onClick={() => abrir(uj.jogo.id)}
+                />
               ))}
             </SimpleGrid>
           )}
@@ -98,7 +189,12 @@ export function Biblioteca() {
   );
 }
 
-function Chip({ ativo, onClick, label, n, status }: { ativo: boolean; onClick: () => void; label: string; n: number; status?: number }) {
+function Chip({
+  ativo, onClick, label, n, status, zerado, platinado, abandonado,
+}: {
+  ativo: boolean; onClick: () => void; label: string; n: number;
+  status?: number; zerado?: boolean; platinado?: boolean; abandonado?: boolean;
+}) {
   return (
     <button
       onClick={onClick}
@@ -116,7 +212,7 @@ function Chip({ ativo, onClick, label, n, status }: { ativo: boolean; onClick: (
         fontFamily: 'inherit',
       }}
     >
-      {status !== undefined && <StatusIcon status={status} size={14} />}
+      {status !== undefined && <StatusIcon status={status} zerado={zerado} platinado={platinado} abandonado={abandonado} size={14} />}
       {label}
       <span style={{ background: 'var(--mantine-color-dark-8)', borderRadius: 999, padding: '1px 8px', fontSize: 12, color: 'var(--mantine-color-dimmed)' }}>
         {n}

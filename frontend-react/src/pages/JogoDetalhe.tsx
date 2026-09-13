@@ -6,7 +6,8 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
-  IconArrowLeft, IconHeart, IconHeartFilled, IconInfoCircle, IconPlus, IconRepeat, IconTrash,
+  IconArrowLeft, IconBookmark, IconDeviceGamepad2, IconHeart, IconHeartFilled, IconInfoCircle, IconPlayerPlay,
+  IconPlus, IconTrash,
 } from '@tabler/icons-react';
 import { useJogo, usePlataformas } from '../api/catalogo';
 import {
@@ -15,9 +16,15 @@ import {
 } from '../api/biblioteca';
 import { extractError } from '../api/client';
 import { StatusIcon } from '../components/StatusIcon';
-import { STATUS_LISTA, StatusJogo, statusInfo } from '../types/status';
+import { STATUS_LISTA, StatusJogo } from '../types/status';
 
 const DEZ = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+const ICONE_STATUS: Record<number, React.ReactNode> = {
+  [StatusJogo.QueroJogar]: <IconBookmark size={16} />,
+  [StatusJogo.Jogando]: <IconPlayerPlay size={16} />,
+  [StatusJogo.Jogado]: <IconDeviceGamepad2 size={16} />,
+};
 
 function corFundo(nome: string): string {
   let h = 0;
@@ -26,8 +33,15 @@ function corFundo(nome: string): string {
   return `linear-gradient(150deg, hsl(${hue}, 45%, 30%), hsl(${(hue + 40) % 360}, 42%, 16%))`;
 }
 
-function formVazio(): NovaJogatina {
-  return { plataformaId: null, ano: null, horas: null, status: StatusJogo.Zerado, ehRejogada: false, observacao: '' };
+/** Convenção de cor do próprio Metacritic: verde ≥75, amarelo 50-74, vermelho <50. */
+function corMetacritic(nota: number): string {
+  if (nota >= 75) return '#6c3';
+  if (nota >= 50) return '#fc3';
+  return '#f00';
+}
+
+function formRejogadaVazio(): NovaJogatina {
+  return { plataformaId: null, ano: null, horas: null, status: StatusJogo.Jogado, ehRejogada: true, observacao: '' };
 }
 
 export function JogoDetalhe() {
@@ -41,12 +55,13 @@ export function JogoDetalhe() {
 
   const [uj, setUj] = useState(ujServidor ?? null);
   const [resenha, setResenha] = useState('');
-  const [dialogAberto, setDialogAberto] = useState(false);
-  const [form, setForm] = useState<NovaJogatina>(formVazio());
+  const [horasLocal, setHorasLocal] = useState<number | ''>('');
 
-  const [confirmAberto, setConfirmAberto] = useState(false);
-  const [statusAlvo, setStatusAlvo] = useState<number | null>(null);
-  const [horasConfirm, setHorasConfirm] = useState<number | null>(null);
+  const [dialogRejogadaAberto, setDialogRejogadaAberto] = useState(false);
+  const [formRejogada, setFormRejogada] = useState<NovaJogatina>(formRejogadaVazio());
+
+  const [confirmZerarAberto, setConfirmZerarAberto] = useState(false);
+  const [horasConfirm, setHorasConfirm] = useState<number | ''>('');
   const [tambemPlatinei, setTambemPlatinei] = useState(false);
 
   const marcar = useMarcar();
@@ -55,62 +70,106 @@ export function JogoDetalhe() {
   const removerJogatina = useRemoverJogatina();
   const removerDaBiblioteca = useRemoverDaBiblioteca();
 
+  const principal = uj?.jogatinas.find((j) => !j.ehRejogada) ?? null;
+  const rejogadas = uj?.jogatinas.filter((j) => j.ehRejogada) ?? [];
+
   useEffect(() => {
     setUj(ujServidor ?? null);
     setResenha(ujServidor?.resenha ?? '');
+    setHorasLocal(ujServidor?.jogatinas.find((j) => !j.ehRejogada)?.horas ?? '');
   }, [ujServidor]);
 
   function erro(e: unknown) {
     notifications.show({ color: 'red', title: 'Ops', message: extractError(e, 'Algo deu errado.') });
   }
 
-  function temHorasRegistradas(): boolean {
-    return !!uj?.jogatinas.some((jt) => jt.horas);
-  }
-
-  async function aplicarStatus(status: number, horas?: number | null) {
+  async function definirStatus(status: number) {
     try {
-      const novo = await marcar.mutateAsync({ jogoId, status });
+      const novo = uj
+        ? await atualizar.mutateAsync({ usuarioJogoId: uj.id, body: { status } })
+        : await marcar.mutateAsync({ jogoId, status });
       setUj(novo);
       setResenha(novo.resenha ?? '');
-      if (horas) {
-        const jt = await adicionarJogatina.mutateAsync({
-          usuarioJogoId: novo.id,
-          body: { plataformaId: null, ano: null, horas, status, ehRejogada: false, observacao: null },
-        });
-        setUj((atual) => (atual ? { ...atual, jogatinas: [jt, ...atual.jogatinas] } : atual));
-      }
     } catch (e) {
       erro(e);
     }
   }
 
-  async function definirStatus(status: number) {
-    // Zerado/Platinado: se ainda não tem horas registradas, pergunta antes de aplicar
-    // (dá pra registrar horas em qualquer status, isso aqui é só um atalho de conveniência).
-    const ehConclusao = status === StatusJogo.Zerado || status === StatusJogo.Platinado;
-    if (ehConclusao && !temHorasRegistradas()) {
-      setStatusAlvo(status);
-      setHorasConfirm(null);
-      setTambemPlatinei(status === StatusJogo.Platinado);
-      setConfirmAberto(true);
-      return;
+  async function salvarPlataforma(plataformaId: number | null) {
+    if (!uj) return;
+    try {
+      const novo = await atualizar.mutateAsync({ usuarioJogoId: uj.id, body: { plataformaId: plataformaId ?? undefined } });
+      setUj(novo);
+    } catch (e) {
+      erro(e);
     }
-    await aplicarStatus(status);
   }
 
-  async function confirmarConclusao() {
-    if (statusAlvo === null) return;
-    const statusFinal = tambemPlatinei ? StatusJogo.Platinado : statusAlvo;
-    await aplicarStatus(statusFinal, horasConfirm);
-    setConfirmAberto(false);
+  async function salvarHoras() {
+    if (!uj || horasLocal === principal?.horas) return;
+    try {
+      const novo = await atualizar.mutateAsync({ usuarioJogoId: uj.id, body: { horas: horasLocal === '' ? undefined : horasLocal } });
+      setUj(novo);
+    } catch (e) {
+      erro(e);
+    }
+  }
+
+  async function toggleZerado(checked: boolean) {
+    if (!uj) return;
+    if (checked && !principal?.horas) {
+      setHorasConfirm('');
+      setTambemPlatinei(false);
+      setConfirmZerarAberto(true);
+      return;
+    }
+    try {
+      const novo = await atualizar.mutateAsync({ usuarioJogoId: uj.id, body: { zerado: checked, platinado: checked ? undefined : false } });
+      setUj(novo);
+    } catch (e) {
+      erro(e);
+    }
+  }
+
+  async function confirmarZerado() {
+    if (!uj) return;
+    try {
+      const novo = await atualizar.mutateAsync({
+        usuarioJogoId: uj.id,
+        body: { zerado: true, platinado: tambemPlatinei, horas: horasConfirm === '' ? undefined : horasConfirm },
+      });
+      setUj(novo);
+      setHorasLocal(novo.jogatinas.find((j) => !j.ehRejogada)?.horas ?? '');
+      setConfirmZerarAberto(false);
+    } catch (e) {
+      erro(e);
+    }
+  }
+
+  async function togglePlatinado(checked: boolean) {
+    if (!uj) return;
+    try {
+      const novo = await atualizar.mutateAsync({ usuarioJogoId: uj.id, body: { platinado: checked } });
+      setUj(novo);
+    } catch (e) {
+      erro(e);
+    }
+  }
+
+  async function toggleAbandonado(checked: boolean) {
+    if (!uj) return;
+    try {
+      const novo = await atualizar.mutateAsync({ usuarioJogoId: uj.id, body: { abandonado: checked, zerado: checked ? false : undefined, platinado: checked ? false : undefined } });
+      setUj(novo);
+    } catch (e) {
+      erro(e);
+    }
   }
 
   async function toggleFavorito() {
     if (!uj) return;
     try {
-      const atualizado = await atualizar.mutateAsync({ usuarioJogoId: uj.id, body: { favorito: !uj.favorito } });
-      setUj({ ...atualizado, jogatinas: uj.jogatinas });
+      setUj(await atualizar.mutateAsync({ usuarioJogoId: uj.id, body: { favorito: !uj.favorito } }));
     } catch (e) {
       erro(e);
     }
@@ -119,8 +178,7 @@ export function JogoDetalhe() {
   async function setNota(n: number) {
     if (!uj) return;
     try {
-      const atualizado = await atualizar.mutateAsync({ usuarioJogoId: uj.id, body: { nota: n } });
-      setUj({ ...atualizado, jogatinas: uj.jogatinas });
+      setUj(await atualizar.mutateAsync({ usuarioJogoId: uj.id, body: { nota: n } }));
     } catch (e) {
       erro(e);
     }
@@ -129,24 +187,23 @@ export function JogoDetalhe() {
   async function salvarResenha() {
     if (!uj || (uj.resenha ?? '') === resenha) return;
     try {
-      const atualizado = await atualizar.mutateAsync({ usuarioJogoId: uj.id, body: { resenha } });
-      setUj({ ...atualizado, jogatinas: uj.jogatinas });
+      setUj(await atualizar.mutateAsync({ usuarioJogoId: uj.id, body: { resenha } }));
     } catch (e) {
       erro(e);
     }
   }
 
-  function abrirDialog() {
-    setForm(formVazio());
-    setDialogAberto(true);
+  function abrirDialogRejogada() {
+    setFormRejogada(formRejogadaVazio());
+    setDialogRejogadaAberto(true);
   }
 
-  async function salvarJogatina() {
+  async function salvarRejogada() {
     if (!uj) return;
     try {
-      const jt = await adicionarJogatina.mutateAsync({ usuarioJogoId: uj.id, body: form });
-      setUj({ ...uj, jogatinas: [jt, ...uj.jogatinas] });
-      setDialogAberto(false);
+      const jt = await adicionarJogatina.mutateAsync({ usuarioJogoId: uj.id, body: { ...formRejogada, ehRejogada: true } });
+      setUj({ ...uj, jogatinas: [...uj.jogatinas, jt] });
+      setDialogRejogadaAberto(false);
     } catch (e) {
       erro(e);
     }
@@ -172,9 +229,7 @@ export function JogoDetalhe() {
     }
   }
 
-  if (isLoading) {
-    return <Center mih={300}><Loader /></Center>;
-  }
+  if (isLoading) return <Center mih={300}><Loader /></Center>;
   if (!jogo) return null;
 
   return (
@@ -199,18 +254,25 @@ export function JogoDetalhe() {
           <Group gap={8} mt="sm" mb={4}>
             {jogo.ano && <Text c="dimmed">{jogo.ano}</Text>}
             {jogo.generos.map((g) => <Badge key={g} variant="light">{g}</Badge>)}
-            {!!jogo.metacritic && <Badge color="lime" variant="filled">Metacritic {jogo.metacritic}</Badge>}
+            {!!jogo.metacritic && (
+              <Badge
+                variant="filled"
+                styles={{ root: { backgroundColor: corMetacritic(jogo.metacritic), color: '#111' } }}
+              >
+                Metacritic {jogo.metacritic}
+              </Badge>
+            )}
           </Group>
 
           {jogo.plataformasDisponiveis.length > 0 && (
             <Group gap={6} mb={4}>
-              <Text size="xs" c="dimmed">Disponível em:</Text>
+              <Text size="xs" c="dimmed">Lançado em:</Text>
               {jogo.plataformasDisponiveis.map((p) => <Badge key={p} variant="outline" size="sm">{p}</Badge>)}
             </Group>
           )}
 
           {jogo.tempoMedioHoras && (
-            <Text size="xs" c="dimmed" mb={4}>Tempo médio pra zerar (comunidade): {jogo.tempoMedioHoras}h</Text>
+            <Text size="xs" c="dimmed" mb={4}>Tempo médio da comunidade pra zerar: {jogo.tempoMedioHoras}h</Text>
           )}
 
           {jogo.dlcs.length > 0 && (
@@ -226,7 +288,7 @@ export function JogoDetalhe() {
 
           <Stack gap={10} mt="xl">
             <Text fw={700}>Status</Text>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
+            <Group gap={10}>
               {STATUS_LISTA.map((s) => (
                 <button
                   key={s.valor}
@@ -235,18 +297,57 @@ export function JogoDetalhe() {
                     display: 'flex', alignItems: 'center', gap: 9,
                     background: uj?.status === s.valor ? `${s.cor}26` : 'var(--mantine-color-dark-6)',
                     border: `1px solid ${uj?.status === s.valor ? s.cor : 'var(--mantine-color-dark-4)'}`,
-                    color: 'var(--mantine-color-white)', borderRadius: 12, padding: '12px 14px',
+                    color: 'var(--mantine-color-white)', borderRadius: 12, padding: '12px 16px',
                     fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
                   }}
                 >
-                  <StatusIcon status={s.valor} size={16} /> {s.label}
+                  {ICONE_STATUS[s.valor]} {s.label}
                 </button>
               ))}
-            </div>
+            </Group>
           </Stack>
 
           {uj ? (
             <>
+              <Group mt="xl" gap="md" align="flex-end">
+                <Select
+                  label="Plataforma que você jogou"
+                  placeholder="Selecione"
+                  searchable
+                  w={220}
+                  data={plataformas.map((p) => ({ value: String(p.id), label: p.nome }))}
+                  value={principal?.plataformaId != null ? String(principal.plataformaId) : null}
+                  onChange={(v) => salvarPlataforma(v ? Number(v) : null)}
+                />
+                <NumberInput
+                  label="Horas jogadas"
+                  placeholder="ex: 40"
+                  w={140}
+                  value={horasLocal}
+                  onChange={(v) => setHorasLocal(v === '' ? '' : Number(v))}
+                  onBlur={salvarHoras}
+                />
+              </Group>
+
+              <Group mt="lg" gap="xl">
+                <Checkbox
+                  label="Zerei"
+                  checked={uj.zerado}
+                  onChange={(e) => toggleZerado(e.currentTarget.checked)}
+                />
+                <Checkbox
+                  label="Platinei"
+                  disabled={!uj.zerado}
+                  checked={uj.platinado}
+                  onChange={(e) => togglePlatinado(e.currentTarget.checked)}
+                />
+                <Checkbox
+                  label="Abandonei"
+                  checked={uj.abandonado}
+                  onChange={(e) => toggleAbandonado(e.currentTarget.checked)}
+                />
+              </Group>
+
               <Group mt="xl" gap={40} align="flex-start">
                 <div>
                   <Text fw={700} mb={10}>Sua nota</Text>
@@ -299,39 +400,36 @@ export function JogoDetalhe() {
 
               <Stack gap={14} mt="xl">
                 <Group justify="space-between">
-                  <Text fw={700}>Suas jogatinas</Text>
-                  <Button variant="subtle" size="compact-sm" leftSection={<IconPlus size={14} />} onClick={abrirDialog}>
-                    Registrar
+                  <Text fw={700}>Rejogadas</Text>
+                  <Button variant="subtle" size="compact-sm" leftSection={<IconPlus size={14} />} onClick={abrirDialogRejogada}>
+                    Registrar rejogada
                   </Button>
                 </Group>
 
-                {uj.jogatinas.length === 0 ? (
-                  <Text c="dimmed" size="sm">Nenhuma jogatina registrada. Marque quando e onde você jogou — inclusive rejogadas.</Text>
+                {rejogadas.length === 0 ? (
+                  <Text c="dimmed" size="sm">Nenhuma rejogada registrada ainda.</Text>
                 ) : (
                   <Stack gap={10}>
-                    {uj.jogatinas.map((jt) => {
-                      const info = statusInfo(jt.status);
-                      return (
-                        <Group key={jt.id} gap={13} p={14} style={{ background: 'var(--mantine-color-dark-7)', border: '1px solid var(--mantine-color-dark-4)', borderRadius: 12 }}>
-                          <Center w={36} h={36} style={{ borderRadius: 9, background: `${info.cor}26`, flexShrink: 0 }}>
-                            <StatusIcon status={jt.status} size={18} />
-                          </Center>
-                          <div style={{ flex: 1 }}>
-                            <Text size="sm" fw={600}>{jt.plataforma || 'Plataforma não informada'}</Text>
-                            <Text size="xs" c="dimmed">
-                              {info.label}
-                              {jt.ano ? ` · ${jt.ano}` : ''}
-                              {jt.horas ? ` · ${jt.horas}h` : ''}
-                              {jt.ehRejogada ? ' · rejogada' : ''}
-                            </Text>
-                          </div>
-                          {jt.ehRejogada && <IconRepeat size={16} opacity={0.6} />}
-                          <ActionIcon variant="subtle" color="gray" onClick={() => onRemoverJogatina(jt.id)}>
-                            <IconTrash size={16} />
-                          </ActionIcon>
-                        </Group>
-                      );
-                    })}
+                    {rejogadas.map((jt) => (
+                      <Group key={jt.id} gap={13} p={14} style={{ background: 'var(--mantine-color-dark-7)', border: '1px solid var(--mantine-color-dark-4)', borderRadius: 12 }}>
+                        <Center w={36} h={36} style={{ borderRadius: 9, background: 'var(--mantine-color-dark-5)', flexShrink: 0 }}>
+                          <StatusIcon status={jt.status} zerado={jt.zerado} platinado={jt.platinado} abandonado={jt.abandonado} size={18} />
+                        </Center>
+                        <div style={{ flex: 1 }}>
+                          <Text size="sm" fw={600}>{jt.plataforma || 'Plataforma não informada'}</Text>
+                          <Text size="xs" c="dimmed">
+                            {jt.ano ? `${jt.ano}` : ''}
+                            {jt.horas ? ` · ${jt.horas}h` : ''}
+                            {jt.zerado ? ' · zerou' : ''}
+                            {jt.platinado ? ' · platinou' : ''}
+                            {jt.abandonado ? ' · abandonou' : ''}
+                          </Text>
+                        </div>
+                        <ActionIcon variant="subtle" color="gray" onClick={() => onRemoverJogatina(jt.id)}>
+                          <IconTrash size={16} />
+                        </ActionIcon>
+                      </Group>
+                    ))}
                   </Stack>
                 )}
               </Stack>
@@ -349,60 +447,54 @@ export function JogoDetalhe() {
         </div>
       </div>
 
-      <Modal opened={dialogAberto} onClose={() => setDialogAberto(false)} title="Registrar jogatina" centered>
+      <Modal opened={dialogRejogadaAberto} onClose={() => setDialogRejogadaAberto(false)} title="Registrar rejogada" centered>
         <Stack>
           <Select
             label="Plataforma"
             placeholder="Selecione"
             searchable
             data={plataformas.map((p) => ({ value: String(p.id), label: p.nome }))}
-            value={form.plataformaId != null ? String(form.plataformaId) : null}
-            onChange={(v) => setForm((f) => ({ ...f, plataformaId: v ? Number(v) : null }))}
+            value={formRejogada.plataformaId != null ? String(formRejogada.plataformaId) : null}
+            onChange={(v) => setFormRejogada((f) => ({ ...f, plataformaId: v ? Number(v) : null }))}
           />
           <Group grow>
-            <NumberInput label="Ano" placeholder="2024" value={form.ano ?? ''} onChange={(v) => setForm((f) => ({ ...f, ano: v === '' ? null : Number(v) }))} />
-            <NumberInput label="Horas" placeholder="40" value={form.horas ?? ''} onChange={(v) => setForm((f) => ({ ...f, horas: v === '' ? null : Number(v) }))} />
+            <NumberInput label="Ano" placeholder="2024" value={formRejogada.ano ?? ''} onChange={(v) => setFormRejogada((f) => ({ ...f, ano: v === '' ? null : Number(v) }))} />
+            <NumberInput label="Horas" placeholder="40" value={formRejogada.horas ?? ''} onChange={(v) => setFormRejogada((f) => ({ ...f, horas: v === '' ? null : Number(v) }))} />
           </Group>
-          <Select
-            label="Como terminou"
-            data={STATUS_LISTA.map((s) => ({ value: String(s.valor), label: s.label }))}
-            value={String(form.status)}
-            onChange={(v) => setForm((f) => ({ ...f, status: v ? Number(v) : f.status }))}
+          <Checkbox
+            label="Zerou de novo"
+            checked={!!formRejogada.zerado}
+            onChange={(e) => setFormRejogada((f) => ({ ...f, zerado: e.currentTarget.checked, platinado: e.currentTarget.checked ? f.platinado : false }))}
           />
           <Checkbox
-            label="Foi uma rejogada"
-            checked={form.ehRejogada}
-            onChange={(e) => setForm((f) => ({ ...f, ehRejogada: e.currentTarget.checked }))}
+            label="Platinou de novo"
+            disabled={!formRejogada.zerado}
+            checked={!!formRejogada.platinado}
+            onChange={(e) => setFormRejogada((f) => ({ ...f, platinado: e.currentTarget.checked }))}
           />
           <Group justify="flex-end" mt="sm">
-            <Button variant="subtle" color="gray" onClick={() => setDialogAberto(false)}>Cancelar</Button>
-            <Button onClick={salvarJogatina} loading={adicionarJogatina.isPending}>Salvar</Button>
+            <Button variant="subtle" color="gray" onClick={() => setDialogRejogadaAberto(false)}>Cancelar</Button>
+            <Button onClick={salvarRejogada} loading={adicionarJogatina.isPending}>Salvar</Button>
           </Group>
         </Stack>
       </Modal>
-      <Modal
-        opened={confirmAberto}
-        onClose={() => setConfirmAberto(false)}
-        title={statusAlvo === StatusJogo.Platinado ? 'Platinar jogo' : 'Zerar jogo'}
-        centered
-      >
+
+      <Modal opened={confirmZerarAberto} onClose={() => setConfirmZerarAberto(false)} title="Zerar jogo" centered>
         <Stack>
           <NumberInput
             label="Quantas horas você levou? (opcional)"
             placeholder="ex: 40"
-            value={horasConfirm ?? ''}
-            onChange={(v) => setHorasConfirm(v === '' ? null : Number(v))}
+            value={horasConfirm}
+            onChange={(v) => setHorasConfirm(v === '' ? '' : Number(v))}
           />
-          {statusAlvo === StatusJogo.Zerado && (
-            <Checkbox
-              label="Também platinei"
-              checked={tambemPlatinei}
-              onChange={(e) => setTambemPlatinei(e.currentTarget.checked)}
-            />
-          )}
+          <Checkbox
+            label="Também platinei"
+            checked={tambemPlatinei}
+            onChange={(e) => setTambemPlatinei(e.currentTarget.checked)}
+          />
           <Group justify="flex-end" mt="sm">
-            <Button variant="subtle" color="gray" onClick={() => setConfirmAberto(false)}>Cancelar</Button>
-            <Button onClick={confirmarConclusao} loading={marcar.isPending || adicionarJogatina.isPending}>Salvar</Button>
+            <Button variant="subtle" color="gray" onClick={() => setConfirmZerarAberto(false)}>Cancelar</Button>
+            <Button onClick={confirmarZerado} loading={atualizar.isPending}>Salvar</Button>
           </Group>
         </Stack>
       </Modal>

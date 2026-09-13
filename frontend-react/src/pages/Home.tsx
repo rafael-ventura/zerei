@@ -1,9 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Anchor, Avatar, Card, Center, Group, Loader, Progress, SimpleGrid, Stack, Text, Title } from '@mantine/core';
-import { IconDeviceDesktop, IconTag } from '@tabler/icons-react';
+import { IconClockHour4, IconDeviceDesktop, IconTag, IconTrophy } from '@tabler/icons-react';
 import { usePerfil } from '../api/perfil';
-import type { DistribuicaoItem } from '../types/models';
+import { useBiblioteca } from '../api/biblioteca';
+import type { DistribuicaoItem, UsuarioJogo } from '../types/models';
 import { JogoCard } from '../components/JogoCard';
+import { somarHoras } from '../utils/jogo';
 
 function inicial(nome: string): string {
   return (nome?.trim()?.charAt(0) || '?').toUpperCase();
@@ -35,8 +37,35 @@ function Distribuicao({ titulo, itens, cor, vazio }: { titulo: string; itens: Di
   );
 }
 
+function Ranking({ titulo, itens, onClickItem }: { titulo: string; itens: UsuarioJogo[]; onClickItem: (jogoId: number) => void }) {
+  return (
+    <Card withBorder radius="md" p="lg">
+      <Text fw={700} mb="md">{titulo}</Text>
+      {itens.length === 0 ? (
+        <Text size="sm" c="dimmed">Nada por aqui ainda.</Text>
+      ) : (
+        <Stack gap={10}>
+          {itens.map((uj, i) => (
+            <Group key={uj.id} gap="sm" wrap="nowrap" style={{ cursor: 'pointer' }} onClick={() => onClickItem(uj.jogo.id)}>
+              <Text size="sm" c="dimmed" w={18} ta="right" style={{ flexShrink: 0 }}>{i + 1}</Text>
+              <div style={{ width: 34, aspectRatio: '3/4', borderRadius: 6, overflow: 'hidden', flexShrink: 0, background: 'var(--mantine-color-dark-6)' }}>
+                {uj.jogo.capaUrl && <img src={uj.jogo.capaUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+              </div>
+              <Text size="sm" fw={600} style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {uj.jogo.nome}
+              </Text>
+              <Text size="sm" c="dimmed" style={{ flexShrink: 0 }}>{somarHoras(uj)}h</Text>
+            </Group>
+          ))}
+        </Stack>
+      )}
+    </Card>
+  );
+}
+
 export function Home() {
   const { data: perfil, isLoading } = usePerfil();
+  const { data: biblioteca = [] } = useBiblioteca();
   const navigate = useNavigate();
 
   if (isLoading) {
@@ -49,6 +78,9 @@ export function Home() {
 
   if (!perfil) return null;
   const { usuario, estatisticas: e, favoritos } = perfil;
+
+  const maisJogados = [...biblioteca].sort((a, b) => somarHoras(b) - somarHoras(a)).slice(0, 5);
+  const recentes = biblioteca.slice(0, 5); // API já devolve em ordem de AtualizadoEm desc
 
   return (
     <Stack gap="xl">
@@ -66,17 +98,47 @@ export function Home() {
         </div>
       </Group>
 
-      <SimpleGrid cols={{ base: 2, sm: 5 }} spacing="md">
+      {/* Horas jogadas em destaque — pedido explícito: hora e platina mais visíveis que o resto */}
+      <Group gap="md" grow>
+        <Card withBorder radius="md" p="xl" style={{ background: 'linear-gradient(135deg, rgba(79,156,255,0.12), transparent)' }}>
+          <Group gap="lg" wrap="nowrap">
+            <Center w={56} h={56} style={{ borderRadius: 14, background: 'rgba(79,156,255,0.15)', color: 'var(--mantine-color-blue-4)', flexShrink: 0 }}>
+              <IconClockHour4 size={28} />
+            </Center>
+            <div>
+              <Text fz={38} fw={900} lh={1}>{e.totalHoras}</Text>
+              <Text fz={13} c="dimmed" fw={600} tt="uppercase">Horas jogadas</Text>
+            </div>
+          </Group>
+        </Card>
+        <Card withBorder radius="md" p="xl" style={{ background: 'linear-gradient(135deg, rgba(245,197,24,0.12), transparent)' }}>
+          <Group gap="lg" wrap="nowrap">
+            <Center w={56} h={56} style={{ borderRadius: 14, background: 'rgba(245,197,24,0.15)', color: '#f5c518', flexShrink: 0 }}>
+              <IconTrophy size={28} />
+            </Center>
+            <div>
+              <Text fz={38} fw={900} lh={1}>{e.platinados}</Text>
+              <Text fz={13} c="dimmed" fw={600} tt="uppercase">Platinados</Text>
+            </div>
+          </Group>
+        </Card>
+      </Group>
+
+      <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
         <StatTile num={e.totalJogos} label="Jogos" />
         <StatTile num={e.zerados} label="Zerados" color="green" />
-        <StatTile num={e.platinados} label="Platinados" color="yellow" />
-        <StatTile num={e.totalHoras} label="Horas" color="blue" />
+        <StatTile num={e.abandonados} label="Abandonados" color="red" />
         <StatTile num={e.notaMedia ?? '—'} label="Nota média" color="violet" />
       </SimpleGrid>
 
       <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
         <DestaqueCard icon={<IconDeviceDesktop size={22} />} label="Plataforma favorita" valor={e.plataformaFavorita} />
         <DestaqueCard icon={<IconTag size={22} />} label="Gênero favorito" valor={e.generoFavorito} />
+      </SimpleGrid>
+
+      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+        <Ranking titulo="Mais jogados" itens={maisJogados} onClickItem={(id) => navigate(`/jogo/${id}`)} />
+        <Ranking titulo="Jogados recentemente" itens={recentes} onClickItem={(id) => navigate(`/jogo/${id}`)} />
       </SimpleGrid>
 
       <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
@@ -89,7 +151,17 @@ export function Home() {
           <Text fw={700} mb="md">Favoritos</Text>
           <SimpleGrid cols={{ base: 3, sm: 4, md: 6 }} spacing="md">
             {favoritos.map((uj) => (
-              <JogoCard key={uj.id} jogo={uj.jogo} status={uj.status} nota={uj.nota} onClick={() => navigate(`/jogo/${uj.jogo.id}`)} />
+              <JogoCard
+                key={uj.id}
+                jogo={uj.jogo}
+                status={uj.status}
+                zerado={uj.zerado}
+                platinado={uj.platinado}
+                abandonado={uj.abandonado}
+                nota={uj.nota}
+                horas={somarHoras(uj)}
+                onClick={() => navigate(`/jogo/${uj.jogo.id}`)}
+              />
             ))}
           </SimpleGrid>
         </div>

@@ -40,6 +40,9 @@ export interface Jogatina {
   ano?: number | null;
   horas?: number | null;
   status: number;
+  zerado: boolean;
+  platinado: boolean;
+  abandonado: boolean;
   ehRejogada: boolean;
   observacao?: string | null;
 }
@@ -48,6 +51,9 @@ export interface UsuarioJogo {
   id: number;
   jogo: Jogo;
   status: number;
+  zerado: boolean;
+  platinado: boolean;
+  abandonado: boolean;
   nota?: number | null;
   favorito: boolean;
   resenha?: string | null;

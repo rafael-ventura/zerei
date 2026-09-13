@@ -10,6 +10,9 @@ export interface NovaJogatina {
   status: number;
   ehRejogada: boolean;
   observacao?: string | null;
+  zerado?: boolean;
+  platinado?: boolean;
+  abandonado?: boolean;
 }
 
 export interface AtualizarBiblioteca {
@@ -17,6 +20,11 @@ export interface AtualizarBiblioteca {
   nota?: number | null;
   favorito?: boolean;
   resenha?: string | null;
+  zerado?: boolean | null;
+  platinado?: boolean | null;
+  abandonado?: boolean | null;
+  plataformaId?: number;
+  horas?: number;
 }
 
 export function normalizarJogatina(jt: Jogatina): Jogatina {

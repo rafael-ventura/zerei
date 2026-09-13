@@ -1,6 +1,6 @@
-import { IconCheck, IconStarFilled } from '@tabler/icons-react';
+import { IconCheck, IconClockHour4, IconStarFilled } from '@tabler/icons-react';
 import type { Jogo } from '../types/models';
-import { statusInfo } from '../types/status';
+import { badgeInfo } from '../types/status';
 import { StatusIcon } from './StatusIcon';
 import styles from './JogoCard.module.css';
 
@@ -14,14 +14,21 @@ function corFundo(nome: string): string {
 interface Props {
   jogo: Jogo;
   status?: number | null;
+  zerado?: boolean;
+  platinado?: boolean;
+  abandonado?: boolean;
   nota?: number | null;
+  horas?: number | null;
   selecionado?: boolean;
   mostrarNome?: boolean;
   onClick?: () => void;
 }
 
-export function JogoCard({ jogo, status = null, nota = null, selecionado = false, mostrarNome = true, onClick }: Props) {
-  const info = status !== null ? statusInfo(status) : null;
+export function JogoCard({
+  jogo, status = null, zerado = false, platinado = false, abandonado = false,
+  nota = null, horas = null, selecionado = false, mostrarNome = true, onClick,
+}: Props) {
+  const info = status !== null ? badgeInfo(status, zerado, platinado, abandonado) : null;
 
   return (
     <div className={`${styles.jc} ${selecionado ? styles.sel : ''}`} onClick={onClick}>
@@ -39,13 +46,19 @@ export function JogoCard({ jogo, status = null, nota = null, selecionado = false
             className={styles.badge}
             style={{ background: `${info.cor}26`, color: info.cor, borderColor: `${info.cor}66` }}
           >
-            <StatusIcon status={status} size={14} />
+            <StatusIcon status={status} zerado={zerado} platinado={platinado} abandonado={abandonado} size={14} />
           </span>
         )}
 
         {!!nota && (
           <span className={styles.nota}>
             <IconStarFilled size={10} /> {nota}
+          </span>
+        )}
+
+        {!!horas && (
+          <span className={styles.horas}>
+            <IconClockHour4 size={10} /> {horas}h
           </span>
         )}
 
