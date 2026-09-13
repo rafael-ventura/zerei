@@ -60,10 +60,14 @@ public class CatalogoService
         var generoCache = new Dictionary<string, Genero>();
         var plataformaCache = new Dictionary<string, Plataforma>();
         var novos = new List<(Jogo Jogo, int RawgId)>();
+        var rawgIdsNesteLote = new HashSet<int>();
 
         foreach (var r in rawgResultados)
         {
-            if (r.RawgId is null) continue;
+            // A RAWG às vezes repete o mesmo RawgId no mesmo resultado de busca — sem essa checagem,
+            // a segunda ocorrência tentava criar outro Jogo com o mesmo RawgId antes do primeiro ser
+            // salvo, e o SaveChanges inteiro falhava por violar a unique constraint.
+            if (r.RawgId is null || !rawgIdsNesteLote.Add(r.RawgId.Value)) continue;
             var existente = await _db.Jogos.FirstOrDefaultAsync(j => j.RawgId == r.RawgId);
             if (existente is null)
             {
