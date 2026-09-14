@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-export const API_BASE = 'http://localhost:5192/api';
+// Caminho relativo: o Vite repassa /api pro backend (ver vite.config.ts). Assim o navegador
+// (PC ou celular na rede) só precisa alcançar a porta do Vite, sem depender de CORS nem de
+// abrir a porta da API no firewall.
+export const API_BASE = '/api';
 
 const TOKEN_KEY = 'zerei_token';
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  ActionIcon, Badge, Button, Center, Checkbox, Group, Loader, Modal, NumberInput, Select,
+  ActionIcon, Badge, Button, Center, Checkbox, Grid, Group, Loader, Modal, NumberInput, Select,
   Stack, Text, Textarea, Title,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
@@ -72,11 +72,22 @@ export function JogoDetalhe() {
 
   useEffect(() => {
     setUj(ujServidor ?? null);
-    setResenha(ujServidor?.resenha ?? '');
-    const principalServidor = ujServidor?.jogatinas.find((j) => !j.ehRejogada);
+  }, [ujServidor]);
+
+  // Só (re)inicializa os campos de digitação livre quando o registro muda de identidade
+  // (entrou nesse jogo, ou ele acabou de ser criado) — nunca a cada refetch em background.
+  // Qualquer outra ação (marcar zerado, plataforma, etc.) também invalida a query e traria
+  // de volta um ujServidor "novo" por referência; se resincronizássemos nesses casos também,
+  // um refetch mais lento que outro poderia sobrescrever um texto que o usuário acabou de
+  // digitar mas ainda não deu blur pra salvar (foi o que causou a resenha "sumir").
+  useEffect(() => {
+    if (!ujServidor) return;
+    setResenha(ujServidor.resenha ?? '');
+    const principalServidor = ujServidor.jogatinas.find((j) => !j.ehRejogada);
     setHorasLocal(principalServidor?.horas ?? '');
     setAnoLocal(principalServidor?.ano ?? '');
-  }, [ujServidor]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ujServidor?.id]);
 
   function erro(e: unknown) {
     notifications.show({ color: 'red', title: 'Ops', message: extractError(e, 'Algo deu errado.') });
@@ -269,7 +280,8 @@ export function JogoDetalhe() {
         Voltar
       </Button>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 280px) 1fr', gap: 36 }}>
+      <Grid gutter={36}>
+        <Grid.Col span={{ base: 12, sm: 4 }}>
         <div style={{ position: 'sticky', top: 90, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--mantine-color-dark-4)', aspectRatio: '3/4', height: 'fit-content' }}>
           {jogo.capaUrl ? (
             <img src={jogo.capaUrl} alt={jogo.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -279,8 +291,9 @@ export function JogoDetalhe() {
             </div>
           )}
         </div>
+        </Grid.Col>
 
-        <div>
+        <Grid.Col span={{ base: 12, sm: 8 }}>
           <Title order={1}>{jogo.nome}</Title>
           <Group gap={8} mt="sm" mb={4}>
             {jogo.ano && <Text c="dimmed">{jogo.ano}</Text>}
@@ -521,8 +534,8 @@ export function JogoDetalhe() {
               <Text size="sm">Escolha um status acima para adicionar este jogo à sua biblioteca.</Text>
             </Group>
           )}
-        </div>
-      </div>
+        </Grid.Col>
+      </Grid>
 
       <Modal opened={dialogRejogadaAberto} onClose={() => setDialogRejogadaAberto(false)} title="Registrar rejogada" centered>
         <Stack>

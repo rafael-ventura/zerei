@@ -119,7 +119,7 @@ export function Home() {
       </Group>
 
       {/* Horas jogadas em destaque — pedido explícito: hora e platina mais visíveis que o resto */}
-      <Group gap="md" grow>
+      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
         <Card withBorder radius="md" p="xl" style={{ background: 'linear-gradient(135deg, rgba(79,156,255,0.12), transparent)' }}>
           <Group gap="lg" wrap="nowrap">
             <Center w={56} h={56} style={{ borderRadius: 14, background: 'rgba(79,156,255,0.15)', color: 'var(--mantine-color-blue-4)', flexShrink: 0 }}>
@@ -142,7 +142,7 @@ export function Home() {
             </div>
           </Group>
         </Card>
-      </Group>
+      </SimpleGrid>
 
       <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
         <StatTile num={e.totalJogos} label="Jogos" />
