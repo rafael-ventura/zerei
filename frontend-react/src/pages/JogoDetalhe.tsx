@@ -6,18 +6,19 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
-  IconArrowLeft, IconBookmark, IconDeviceGamepad2, IconHeart, IconHeartFilled, IconInfoCircle, IconPlayerPlay,
+  IconArrowLeft, IconBookmark, IconCheck, IconDeviceGamepad2, IconHeart, IconHeartFilled, IconInfoCircle, IconPlayerPlay,
   IconPlus, IconStarFilled, IconTrash,
 } from '@tabler/icons-react';
 import { useJogo, usePlataformas } from '../api/catalogo';
 import {
-  useAdicionarJogatina, usePorJogo, useRemoverDaBiblioteca, useRemoverJogatina, useAtualizarBiblioteca, useMarcar,
-  type NovaJogatina,
+  useAdicionarJogatina, useBiblioteca, usePorJogo, useRemoverDaBiblioteca, useRemoverJogatina, useAtualizarBiblioteca,
+  useMarcar, type NovaJogatina,
 } from '../api/biblioteca';
 import { extractError } from '../api/client';
 import { StatusIcon } from '../components/StatusIcon';
 import { STATUS_LISTA, StatusJogo } from '../types/status';
 import { corMetacritic, corNota5, corNota10 } from '../utils/nota';
+import { formatarMesAno, MESES } from '../utils/data';
 
 const DEZ = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
@@ -35,7 +36,7 @@ function corFundo(nome: string): string {
 }
 
 function formRejogadaVazio(): NovaJogatina {
-  return { plataformaId: null, ano: null, horas: null, status: StatusJogo.Jogado, ehRejogada: true, observacao: '' };
+  return { plataformaId: null, ano: null, mes: null, horas: null, status: StatusJogo.Jogado, ehRejogada: true, observacao: '' };
 }
 
 export function JogoDetalhe() {
@@ -46,10 +47,12 @@ export function JogoDetalhe() {
   const { data: jogo, isLoading } = useJogo(jogoId);
   const { data: plataformas = [] } = usePlataformas();
   const { data: ujServidor } = usePorJogo(jogoId);
+  const { data: biblioteca = [] } = useBiblioteca();
 
   const [uj, setUj] = useState(ujServidor ?? null);
   const [resenha, setResenha] = useState('');
   const [horasLocal, setHorasLocal] = useState<number | ''>('');
+  const [anoLocal, setAnoLocal] = useState<number | ''>('');
 
   const [dialogRejogadaAberto, setDialogRejogadaAberto] = useState(false);
   const [formRejogada, setFormRejogada] = useState<NovaJogatina>(formRejogadaVazio());
@@ -70,7 +73,9 @@ export function JogoDetalhe() {
   useEffect(() => {
     setUj(ujServidor ?? null);
     setResenha(ujServidor?.resenha ?? '');
-    setHorasLocal(ujServidor?.jogatinas.find((j) => !j.ehRejogada)?.horas ?? '');
+    const principalServidor = ujServidor?.jogatinas.find((j) => !j.ehRejogada);
+    setHorasLocal(principalServidor?.horas ?? '');
+    setAnoLocal(principalServidor?.ano ?? '');
   }, [ujServidor]);
 
   function erro(e: unknown) {
@@ -104,6 +109,38 @@ export function JogoDetalhe() {
     try {
       const novo = await atualizar.mutateAsync({ usuarioJogoId: uj.id, body: { horas: horasLocal === '' ? undefined : horasLocal } });
       setUj(novo);
+    } catch (e) {
+      erro(e);
+    }
+  }
+
+  async function salvarMes(v: string | null) {
+    if (!uj || !v) return;
+    try {
+      setUj(await atualizar.mutateAsync({ usuarioJogoId: uj.id, body: { mes: Number(v) } }));
+    } catch (e) {
+      erro(e);
+    }
+  }
+
+  async function salvarAno() {
+    if (!uj || anoLocal === principal?.ano || anoLocal === '') return;
+    try {
+      setUj(await atualizar.mutateAsync({ usuarioJogoId: uj.id, body: { ano: anoLocal } }));
+    } catch (e) {
+      erro(e);
+    }
+  }
+
+  function ujDaDlc(dlcId: number) {
+    return biblioteca.find((x) => x.jogo.id === dlcId) ?? null;
+  }
+
+  async function toggleDlc(dlcId: number) {
+    const existente = ujDaDlc(dlcId);
+    try {
+      if (existente) await removerDaBiblioteca.mutateAsync(existente.id);
+      else await marcar.mutateAsync({ jogoId: dlcId, status: StatusJogo.Jogado });
     } catch (e) {
       erro(e);
     }
@@ -290,12 +327,23 @@ export function JogoDetalhe() {
 
           {jogo.dlcs.length > 0 && (
             <Group gap={6} mt={4}>
-              <Text size="xs" c="dimmed">DLCs:</Text>
-              {jogo.dlcs.map((d) => (
-                <Badge key={d.id} variant="dot" size="sm" style={{ cursor: 'pointer' }} onClick={() => navigate(`/jogo/${d.id}`)}>
-                  {d.nome}
-                </Badge>
-              ))}
+              <Text size="xs" c="dimmed">DLCs (clique pra marcar que jogou):</Text>
+              {jogo.dlcs.map((d) => {
+                const jogada = !!ujDaDlc(d.id);
+                return (
+                  <Badge
+                    key={d.id}
+                    variant={jogada ? 'filled' : 'outline'}
+                    color={jogada ? 'green' : 'gray'}
+                    size="sm"
+                    style={{ cursor: 'pointer' }}
+                    leftSection={jogada ? <IconCheck size={11} /> : undefined}
+                    onClick={() => toggleDlc(d.id)}
+                  >
+                    {d.nome}
+                  </Badge>
+                );
+              })}
             </Group>
           )}
 
@@ -339,6 +387,22 @@ export function JogoDetalhe() {
                   value={horasLocal}
                   onChange={(v) => setHorasLocal(v === '' ? '' : Number(v))}
                   onBlur={salvarHoras}
+                />
+                <Select
+                  label="Mês que começou"
+                  placeholder="Mês"
+                  w={100}
+                  data={MESES}
+                  value={principal?.mes ? String(principal.mes) : null}
+                  onChange={salvarMes}
+                />
+                <NumberInput
+                  label="Ano"
+                  placeholder="2026"
+                  w={100}
+                  value={anoLocal}
+                  onChange={(v) => setAnoLocal(v === '' ? '' : Number(v))}
+                  onBlur={salvarAno}
                 />
               </Group>
 
@@ -431,7 +495,7 @@ export function JogoDetalhe() {
                         <div style={{ flex: 1 }}>
                           <Text size="sm" fw={600}>{jt.plataforma || 'Plataforma não informada'}</Text>
                           <Text size="xs" c="dimmed">
-                            {jt.ano ? `${jt.ano}` : ''}
+                            {formatarMesAno(jt.mes, jt.ano) ?? ''}
                             {jt.horas ? ` · ${jt.horas}h` : ''}
                             {jt.zerado ? ' · zerou' : ''}
                             {jt.platinado ? ' · platinou' : ''}
@@ -471,6 +535,13 @@ export function JogoDetalhe() {
             onChange={(v) => setFormRejogada((f) => ({ ...f, plataformaId: v ? Number(v) : null }))}
           />
           <Group grow>
+            <Select
+              label="Mês"
+              placeholder="Mês"
+              data={MESES}
+              value={formRejogada.mes ? String(formRejogada.mes) : null}
+              onChange={(v) => setFormRejogada((f) => ({ ...f, mes: v ? Number(v) : null }))}
+            />
             <NumberInput label="Ano" placeholder="2024" value={formRejogada.ano ?? ''} onChange={(v) => setFormRejogada((f) => ({ ...f, ano: v === '' ? null : Number(v) }))} />
             <NumberInput label="Horas" placeholder="40" value={formRejogada.horas ?? ''} onChange={(v) => setFormRejogada((f) => ({ ...f, horas: v === '' ? null : Number(v) }))} />
           </Group>

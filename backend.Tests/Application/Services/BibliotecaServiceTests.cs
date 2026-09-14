@@ -74,7 +74,7 @@ public class BibliotecaServiceTests
         var uj = await service.MarcarAsync(1, jogo.Id, StatusJogo.Jogado);
 
         var jogatina = await service.AdicionarJogatinaAsync(1, uj.Id,
-            new CriarJogatinaRequest(null, 2005, 40.5, StatusJogo.Jogado, false, "Primeira zerada", Zerado: true));
+            new CriarJogatinaRequest(null, 2005, null, 40.5, StatusJogo.Jogado, false, "Primeira zerada", Zerado: true));
 
         Assert.Equal(2005, jogatina.Ano);
         Assert.Equal(40.5, jogatina.Horas);

@@ -85,7 +85,7 @@ public class BibliotecaService
 
         // Caso comum (uma jogatina só): plataforma/horas informados direto na tela principal,
         // sem precisar do modal de "registrar jogatina" — que fica reservado pra rejogadas de verdade.
-        if (req.PlataformaId.HasValue || req.Horas.HasValue)
+        if (req.PlataformaId.HasValue || req.Horas.HasValue || req.Ano.HasValue || req.Mes.HasValue)
         {
             var principal = uj.Jogatinas.Where(j => !j.EhRejogada).OrderBy(j => j.CriadoEm).FirstOrDefault();
             if (principal is null)
@@ -97,6 +97,8 @@ public class BibliotecaService
             }
             if (req.PlataformaId.HasValue) principal.PlataformaId = req.PlataformaId;
             if (req.Horas.HasValue) principal.Horas = req.Horas;
+            if (req.Ano.HasValue) principal.Ano = req.Ano;
+            if (req.Mes.HasValue) principal.Mes = req.Mes;
             principal.Status = uj.Status;
             principal.Zerado = uj.Zerado;
             principal.Platinado = uj.Platinado;
@@ -128,6 +130,7 @@ public class BibliotecaService
             UsuarioJogoId = uj.Id,
             PlataformaId = req.PlataformaId,
             Ano = req.Ano,
+            Mes = req.Mes,
             Horas = req.Horas,
             Status = req.Status,
             Zerado = flags.Zerado,
@@ -141,7 +144,7 @@ public class BibliotecaService
         await _db.SaveChangesAsync();
 
         var plataforma = req.PlataformaId is null ? null : await _db.Plataformas.FindAsync(req.PlataformaId);
-        return new JogatinaDto(jogatina.Id, jogatina.PlataformaId, plataforma?.Nome, jogatina.Ano, jogatina.Horas,
+        return new JogatinaDto(jogatina.Id, jogatina.PlataformaId, plataforma?.Nome, jogatina.Ano, jogatina.Mes, jogatina.Horas,
             jogatina.Status, jogatina.Zerado, jogatina.Platinado, jogatina.Abandonado, jogatina.EhRejogada, jogatina.Observacao);
     }
 

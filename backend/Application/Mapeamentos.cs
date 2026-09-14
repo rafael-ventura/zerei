@@ -13,10 +13,10 @@ public static class Mapeamentos
             j.Dlcs?.Select(d => new DlcResumoDto(d.Id, d.Nome, d.CapaUrl)).ToList() ?? new());
 
     public static JogatinaDto ToDto(Jogatina j) =>
-        new(j.Id, j.PlataformaId, j.Plataforma?.Nome, j.Ano, j.Horas, j.Status,
+        new(j.Id, j.PlataformaId, j.Plataforma?.Nome, j.Ano, j.Mes, j.Horas, j.Status,
             j.Zerado, j.Platinado, j.Abandonado, j.EhRejogada, j.Observacao);
 
     public static UsuarioJogoDto ToDto(UsuarioJogo uj) =>
         new(uj.Id, ToDto(uj.Jogo), uj.Status, uj.Zerado, uj.Platinado, uj.Abandonado, uj.Nota, uj.Favorito, uj.Resenha,
-            uj.Jogatinas?.OrderByDescending(x => x.Ano).Select(ToDto).ToList() ?? new());
+            uj.Jogatinas?.OrderByDescending(x => x.Ano).ThenByDescending(x => x.Mes).Select(ToDto).ToList() ?? new());
 }

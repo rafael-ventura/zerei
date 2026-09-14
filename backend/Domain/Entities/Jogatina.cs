@@ -17,6 +17,7 @@ public class Jogatina
     public Plataforma? Plataforma { get; set; }
 
     public int? Ano { get; set; }
+    public int? Mes { get; set; }
     public double? Horas { get; set; }
     public StatusJogo Status { get; set; } = StatusJogo.Jogado;
     public bool Zerado { get; set; }

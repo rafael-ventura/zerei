@@ -6,6 +6,18 @@ import { useBiblioteca } from '../api/biblioteca';
 import type { DistribuicaoItem, UsuarioJogo } from '../types/models';
 import { JogoCard } from '../components/JogoCard';
 import { somarHoras } from '../utils/jogo';
+import { chaveMesAno, formatarMesAno } from '../utils/data';
+
+function chaveRecente(uj: UsuarioJogo): number {
+  return Math.max(-1, ...uj.jogatinas.map((j) => chaveMesAno(j.mes, j.ano)));
+}
+
+function dataRecente(uj: UsuarioJogo): string {
+  const comData = uj.jogatinas.filter((j) => j.ano);
+  if (comData.length === 0) return `${somarHoras(uj)}h`;
+  const maisRecente = comData.reduce((a, b) => (chaveMesAno(b.mes, b.ano) > chaveMesAno(a.mes, a.ano) ? b : a));
+  return formatarMesAno(maisRecente.mes, maisRecente.ano) ?? `${somarHoras(uj)}h`;
+}
 
 function inicial(nome: string): string {
   return (nome?.trim()?.charAt(0) || '?').toUpperCase();
@@ -37,7 +49,9 @@ function Distribuicao({ titulo, itens, cor, vazio }: { titulo: string; itens: Di
   );
 }
 
-function Ranking({ titulo, itens, onClickItem }: { titulo: string; itens: UsuarioJogo[]; onClickItem: (jogoId: number) => void }) {
+function Ranking({ titulo, itens, onClickItem, subtitulo }: {
+  titulo: string; itens: UsuarioJogo[]; onClickItem: (jogoId: number) => void; subtitulo?: (uj: UsuarioJogo) => string;
+}) {
   return (
     <Card withBorder radius="md" p="lg">
       <Text fw={700} mb="md">{titulo}</Text>
@@ -54,7 +68,7 @@ function Ranking({ titulo, itens, onClickItem }: { titulo: string; itens: Usuari
               <Text size="sm" fw={600} style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {uj.jogo.nome}
               </Text>
-              <Text size="sm" c="dimmed" style={{ flexShrink: 0 }}>{somarHoras(uj)}h</Text>
+              <Text size="sm" c="dimmed" style={{ flexShrink: 0 }}>{subtitulo ? subtitulo(uj) : `${somarHoras(uj)}h`}</Text>
             </Group>
           ))}
         </Stack>
@@ -80,7 +94,13 @@ export function Home() {
   const { usuario, estatisticas: e, favoritos } = perfil;
 
   const maisJogados = [...biblioteca].sort((a, b) => somarHoras(b) - somarHoras(a)).slice(0, 5);
-  const recentes = biblioteca.slice(0, 5); // API já devolve em ordem de AtualizadoEm desc
+  // Ordena pela data real da jogatina (mês/ano) quando informada; sem data, cai pra ordem
+  // da API (AtualizadoEm desc), já que o índice original desempata de forma estável.
+  const recentes = biblioteca
+    .map((uj, i) => ({ uj, chave: chaveRecente(uj), i }))
+    .sort((a, b) => b.chave - a.chave || a.i - b.i)
+    .slice(0, 5)
+    .map((x) => x.uj);
 
   return (
     <Stack gap="xl">
@@ -138,7 +158,7 @@ export function Home() {
 
       <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
         <Ranking titulo="Mais jogados" itens={maisJogados} onClickItem={(id) => navigate(`/jogo/${id}`)} />
-        <Ranking titulo="Jogados recentemente" itens={recentes} onClickItem={(id) => navigate(`/jogo/${id}`)} />
+        <Ranking titulo="Jogados recentemente" itens={recentes} onClickItem={(id) => navigate(`/jogo/${id}`)} subtitulo={dataRecente} />
       </SimpleGrid>
 
       <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">

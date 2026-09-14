@@ -40,6 +40,7 @@ export interface Jogatina {
   plataformaId?: number | null;
   plataforma?: string | null;
   ano?: number | null;
+  mes?: number | null;
   horas?: number | null;
   status: number;
   zerado: boolean;

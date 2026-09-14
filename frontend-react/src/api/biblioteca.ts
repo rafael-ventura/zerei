@@ -6,6 +6,7 @@ import { normalizarStatus } from '../types/status';
 export interface NovaJogatina {
   plataformaId?: number | null;
   ano?: number | null;
+  mes?: number | null;
   horas?: number | null;
   status: number;
   ehRejogada: boolean;
@@ -25,6 +26,8 @@ export interface AtualizarBiblioteca {
   abandonado?: boolean | null;
   plataformaId?: number;
   horas?: number;
+  ano?: number;
+  mes?: number;
 }
 
 export function normalizarJogatina(jt: Jogatina): Jogatina {
