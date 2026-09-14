@@ -1,5 +1,5 @@
 .card {
-  width: 380px;
+  width: min(380px, 100%);
   padding: 36px 28px;
   border-radius: 24px;
   background: linear-gradient(160deg, #5b3df0 0%, #2f1e8f 55%, #150c3d 100%);
