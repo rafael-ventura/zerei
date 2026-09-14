@@ -4,7 +4,7 @@ import { Button, Center, Group, Loader, SimpleGrid, Stack, Text, Title } from '@
 import { notifications } from '@mantine/notifications';
 import { IconArrowLeft, IconArrowRight } from '@tabler/icons-react';
 import { useFamosos, useGeneros } from '../api/catalogo';
-import { useMarcarLote } from '../api/biblioteca';
+import { useBiblioteca, useMarcarLote } from '../api/biblioteca';
 import { StatusJogo } from '../types/status';
 import { JogoCard } from '../components/JogoCard';
 
@@ -16,12 +16,15 @@ export function Onboarding() {
 
   const { data: generos = [] } = useGeneros();
   const { data: jogos = [], isLoading } = useFamosos();
+  const { data: biblioteca = [] } = useBiblioteca();
   const marcarLote = useMarcarLote();
 
   const jogosFiltrados = useMemo(() => {
-    if (generosSel.size === 0) return jogos;
-    return jogos.filter((j) => j.generos.some((g) => generosSel.has(g)));
-  }, [jogos, generosSel]);
+    const idsNaBiblioteca = new Set(biblioteca.map((uj) => uj.jogo.id));
+    const disponiveis = jogos.filter((j) => !idsNaBiblioteca.has(j.id));
+    if (generosSel.size === 0) return disponiveis;
+    return disponiveis.filter((j) => j.generos.some((g) => generosSel.has(g)));
+  }, [jogos, biblioteca, generosSel]);
 
   function toggleGenero(nome: string) {
     setGenerosSel((prev) => {

@@ -27,7 +27,7 @@ public class CatalogoService
 
     public async Task<List<JogoDto>> FamososAsync(string? generoSlug)
     {
-        var query = _db.Jogos.Include(j => j.Generos).Where(j => j.Famoso);
+        var query = _db.Jogos.Include(j => j.Generos).Where(j => j.Famoso && !j.EhDlc);
         if (!string.IsNullOrWhiteSpace(generoSlug))
             query = query.Where(j => j.Generos.Any(g => g.Slug == generoSlug));
 
@@ -47,9 +47,10 @@ public class CatalogoService
 
     public async Task<List<JogoDto>> BuscarAsync(string termo)
     {
-        // Resultados que já estão no catálogo local
+        // Resultados que já estão no catálogo local (DLCs não aparecem aqui — só como parte
+        // do jogo base, na tela de detalhe, onde dá pra marcar que jogou com um clique).
         var locais = await _db.Jogos.Include(j => j.Generos)
-            .Where(j => EF.Functions.ILike(j.Nome, $"%{termo}%"))
+            .Where(j => !j.EhDlc && EF.Functions.ILike(j.Nome, $"%{termo}%"))
             .OrderBy(j => j.Nome).Take(20).ToListAsync();
 
         if (!_rawg.Configurado)
@@ -107,8 +108,8 @@ public class CatalogoService
 
         var rawgIds = rawgResultados.Where(x => x.RawgId.HasValue).Select(x => x.RawgId!.Value).ToList();
         var combinados = await _db.Jogos.Include(j => j.Generos)
-            .Where(j => EF.Functions.ILike(j.Nome, $"%{termo}%")
-                        || (j.RawgId != null && rawgIds.Contains(j.RawgId.Value)))
+            .Where(j => !j.EhDlc && (EF.Functions.ILike(j.Nome, $"%{termo}%")
+                        || (j.RawgId != null && rawgIds.Contains(j.RawgId.Value))))
             .OrderBy(j => j.Nome).Take(40).ToListAsync();
 
         return combinados.Select(Mapeamentos.ToDto).ToList();

@@ -47,7 +47,14 @@ export function Biblioteca() {
 
   const { data: itens = [], isLoading } = useBiblioteca();
   const emModoBusca = termoDebounced.trim().length >= 3;
-  const { data: resultados = [], isFetching: buscando } = useBusca(termoDebounced);
+  const { data: resultadosBusca = [], isFetching: buscando } = useBusca(termoDebounced);
+
+  // Não faz sentido sugerir de novo um jogo que já está na biblioteca.
+  const idsNaBiblioteca = useMemo(() => new Set(itens.map((uj) => uj.jogo.id)), [itens]);
+  const resultados = useMemo(
+    () => resultadosBusca.filter((j) => !idsNaBiblioteca.has(j.id)),
+    [resultadosBusca, idsNaBiblioteca],
+  );
 
   const plataformasJogadas = useMemo(() => {
     const nomes = new Set<string>();
