@@ -7,6 +7,7 @@ import type { DistribuicaoItem, UsuarioJogo } from '../types/models';
 import { JogoCard } from '../components/JogoCard';
 import { somarHoras } from '../utils/jogo';
 import { chaveMesAno, formatarMesAno } from '../utils/data';
+import { baixarCsv, bibliotecaParaCsv } from '../utils/csv';
 
 function chaveRecente(uj: UsuarioJogo): number {
   return Math.max(-1, ...uj.jogatinas.map((j) => chaveMesAno(j.mes, j.ano)));
@@ -114,6 +115,9 @@ export function Home() {
           <Group gap="md">
             <Anchor component={Link} to={`/u/${usuario.username}`} size="sm">Ver perfil público</Anchor>
             <Anchor component={Link} to="/wrapped" size="sm">Ver meu Wrapped</Anchor>
+            <Anchor component="button" size="sm" onClick={() => baixarCsv(bibliotecaParaCsv(biblioteca), `zerei-biblioteca-${usuario.username}.csv`)}>
+              Exportar CSV
+            </Anchor>
           </Group>
         </div>
       </Group>
