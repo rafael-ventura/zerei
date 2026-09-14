@@ -2,14 +2,15 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ActionIcon, Badge, Button, Center, Checkbox, Grid, Group, Loader, Modal, NumberInput, Select,
-  Stack, Text, Textarea, Title,
+  SimpleGrid, Stack, Text, Textarea, Title,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
   IconArrowLeft, IconBookmark, IconCheck, IconDeviceGamepad2, IconHeart, IconHeartFilled, IconInfoCircle, IconPlayerPlay,
   IconPlus, IconStarFilled, IconTrash,
 } from '@tabler/icons-react';
-import { useJogo, usePlataformas } from '../api/catalogo';
+import { useJogo, usePlataformas, useRelacionados } from '../api/catalogo';
+import { JogoCard } from '../components/JogoCard';
 import {
   useAdicionarJogatina, useBiblioteca, usePorJogo, useRemoverDaBiblioteca, useRemoverJogatina, useAtualizarBiblioteca,
   useMarcar, type NovaJogatina,
@@ -46,6 +47,7 @@ export function JogoDetalhe() {
 
   const { data: jogo, isLoading } = useJogo(jogoId);
   const { data: plataformas = [] } = usePlataformas();
+  const { data: relacionados = [] } = useRelacionados(jogoId);
   const { data: ujServidor } = usePorJogo(jogoId);
   const { data: biblioteca = [] } = useBiblioteca();
 
@@ -536,6 +538,17 @@ export function JogoDetalhe() {
           )}
         </Grid.Col>
       </Grid>
+
+      {relacionados.length > 0 && (
+        <Stack gap={10}>
+          <Text fw={700}>Jogos parecidos</Text>
+          <SimpleGrid cols={{ base: 3, sm: 4, md: 5 }} spacing="md">
+            {relacionados.map((r) => (
+              <JogoCard key={r.id} jogo={r} onClick={() => navigate(`/jogo/${r.id}`)} />
+            ))}
+          </SimpleGrid>
+        </Stack>
+      )}
 
       <Modal opened={dialogRejogadaAberto} onClose={() => setDialogRejogadaAberto(false)} title="Registrar rejogada" centered>
         <Stack>

@@ -113,6 +113,59 @@ public class RawgService
         }
     }
 
+    /// <summary>
+    /// Jogos parecidos: tenta primeiro /game-series (mesma franquia — preciso, mas vazio pra jogos
+    /// avulsos); se não achar nada, cai pra uma busca por gênero na RAWG ordenada por nota, excluindo
+    /// o próprio jogo e DLCs (exclude_additions).
+    /// </summary>
+    public async Task<List<RawgJogo>> RelacionadosAsync(int rawgId, int limite = 5)
+    {
+        if (!Configurado) return new();
+        try
+        {
+            var daSerie = await BuscarListaAsync($"{_opt.BaseUrl}/games/{rawgId}/game-series?key={_opt.ApiKey}&page_size={limite}");
+            if (daSerie.Count > 0) return daSerie.Take(limite).ToList();
+
+            var generoSlug = await PrimeiroGeneroSlugAsync(rawgId);
+            if (generoSlug is null) return new();
+
+            var porGenero = await BuscarListaAsync(
+                $"{_opt.BaseUrl}/games?key={_opt.ApiKey}&genres={generoSlug}&ordering=-rating&exclude_additions=true&page_size={limite + 1}");
+            return porGenero.Where(g => g.RawgId != rawgId).Take(limite).ToList();
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Falha ao buscar jogos parecidos na RAWG pro id {RawgId}", rawgId);
+            return new();
+        }
+    }
+
+    private async Task<string?> PrimeiroGeneroSlugAsync(int rawgId)
+    {
+        using var resp = await _http.GetAsync($"{_opt.BaseUrl}/games/{rawgId}?key={_opt.ApiKey}");
+        if (!resp.IsSuccessStatusCode) return null;
+        await using var stream = await resp.Content.ReadAsStreamAsync();
+        using var doc = await JsonDocument.ParseAsync(stream);
+        if (doc.RootElement.TryGetProperty("genres", out var gEl) && gEl.ValueKind == JsonValueKind.Array)
+            foreach (var g in gEl.EnumerateArray())
+                if (g.TryGetProperty("slug", out var sEl) && sEl.GetString() is string slug)
+                    return slug;
+        return null;
+    }
+
+    private async Task<List<RawgJogo>> BuscarListaAsync(string url)
+    {
+        using var resp = await _http.GetAsync(url);
+        if (!resp.IsSuccessStatusCode) return new();
+        await using var stream = await resp.Content.ReadAsStreamAsync();
+        using var doc = await JsonDocument.ParseAsync(stream);
+        var lista = new List<RawgJogo>();
+        if (doc.RootElement.TryGetProperty("results", out var results))
+            foreach (var item in results.EnumerateArray())
+                lista.Add(MapJogo(item));
+        return lista;
+    }
+
     private static RawgJogo MapJogo(JsonElement item)
     {
         int? id = item.TryGetProperty("id", out var idEl) && idEl.ValueKind == JsonValueKind.Number ? idEl.GetInt32() : null;

@@ -115,6 +115,49 @@ public class CatalogoService
         return combinados.Select(Mapeamentos.ToDto).ToList();
     }
 
+    /// <summary>Jogos parecidos (mesma franquia, ou por gênero quando o jogo não tem série) — importa os que ainda não existem no catálogo.</summary>
+    public async Task<List<JogoDto>> RelacionadosAsync(int jogoId, int limite = 5)
+    {
+        var jogo = await _db.Jogos.FirstOrDefaultAsync(j => j.Id == jogoId);
+        if (jogo?.RawgId is null || !_rawg.Configurado) return new();
+
+        var relacionados = await _rawg.RelacionadosAsync(jogo.RawgId.Value, limite);
+        if (relacionados.Count == 0) return new();
+
+        var generoCache = new Dictionary<string, Genero>();
+        var plataformaCache = new Dictionary<string, Plataforma>();
+        var rawgIds = relacionados.Where(r => r.RawgId.HasValue).Select(r => r.RawgId!.Value).ToList();
+        var existentes = await _db.Jogos.Include(j => j.Generos).Include(j => j.PlataformasDisponiveis)
+            .Where(j => j.RawgId != null && rawgIds.Contains(j.RawgId.Value)).ToDictionaryAsync(j => j.RawgId!.Value);
+
+        foreach (var r in relacionados)
+        {
+            if (r.RawgId is null || existentes.ContainsKey(r.RawgId.Value)) continue;
+            var novo = new Jogo
+            {
+                Nome = r.Nome,
+                Ano = r.Ano,
+                CapaUrl = r.CapaUrl,
+                RawgId = r.RawgId,
+                RawgSlug = r.Slug,
+                Metacritic = r.Metacritic,
+                TempoMedioHoras = r.TempoMedioHoras,
+                NotaComunidade = r.NotaComunidade,
+                NotaComunidadeContagem = r.NotaComunidadeContagem,
+                NotaComunidadeVerificadaEm = DateTime.UtcNow,
+            };
+            foreach (var nomeGenero in r.Generos)
+                novo.Generos.Add(await ObterOuCriarGeneroAsync(nomeGenero, generoCache));
+            foreach (var nomePlataforma in r.Plataformas)
+                novo.PlataformasDisponiveis.Add(await ObterOuCriarPlataformaAsync(nomePlataforma, plataformaCache));
+            _db.Jogos.Add(novo);
+            existentes[r.RawgId.Value] = novo;
+        }
+        await _db.SaveChangesAsync();
+
+        return rawgIds.Select(id => existentes[id]).Select(Mapeamentos.ToDto).ToList();
+    }
+
     /// <summary>Preenche capas e metadados (metacritic, tempo médio, gêneros, plataformas) faltantes consultando a RAWG (idempotente).</summary>
     public async Task<int> EnriquecerCapasAsync(int max = 80)
     {

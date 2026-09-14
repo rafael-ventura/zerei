@@ -40,3 +40,12 @@ export function useBusca(termo: string) {
     staleTime: 60_000,
   });
 }
+
+export function useRelacionados(jogoId: number | null) {
+  return useQuery({
+    queryKey: ['relacionados', jogoId],
+    queryFn: async () => (await api.get<Jogo[]>(`/catalogo/jogos/${jogoId}/relacionados`)).data,
+    enabled: jogoId !== null,
+    staleTime: 5 * 60_000,
+  });
+}

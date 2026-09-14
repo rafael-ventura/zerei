@@ -31,6 +31,10 @@ public class CatalogoController : ControllerBase
         return jogo is null ? NotFound() : Ok(jogo);
     }
 
+    [HttpGet("jogos/{id:int}/relacionados")]
+    public async Task<ActionResult<List<JogoDto>>> Relacionados(int id) =>
+        Ok(await _catalogo.RelacionadosAsync(id));
+
     [HttpGet("busca")]
     public async Task<ActionResult<List<JogoDto>>> Busca([FromQuery] string q)
     {
