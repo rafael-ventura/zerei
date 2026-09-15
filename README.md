@@ -1,5 +1,7 @@
 # zerei 🎮
 
+**English** | [Português](README.pt-BR.md)
+
 > *"Zerei"* is Brazilian Portuguese slang for **beating a game** — from *zerar* ("to zero out"), as in clearing every last bit of it. This is a shelf for tracking every game you've zerado (and every one you haven't, yet).
 
 Your game shelf. Log everything you've played — any platform, replays included — and see your history as stats.
