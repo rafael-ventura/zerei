@@ -83,13 +83,15 @@ frontend-react/
 
 ## Ideas / roadmap
 
-- [ ] **User-made game lists** — multiple lists per user, 0 to N games each, a game can belong to more than one list; lists public or private; shareable as an image and/or CSV so people can see them outside the app (since the app runs locally, this drags in a profile/list privacy piece too)
-- [ ] Activity feed
-- [ ] Monthly history timeline
-- [ ] Real per-platform achievements (Steam first)
-- [ ] PWA / installable on mobile
+Tracked as [issues](../../issues) rather than a list here, so discussion stays in one place:
 
-Got an idea or found a bug? Open an [issue](../../issues) — that's the right place for it, keeps this README focused.
+- [User-made game lists](../../issues/1) — public/private, shareable via image/CSV
+- [Activity feed](../../issues/2)
+- [Monthly history timeline](../../issues/3)
+- [Real per-platform achievements](../../issues/4) (Steam first)
+- [PWA / installable on mobile](../../issues/5)
+
+Got an idea or found a bug? Open a new [issue](../../issues).
 
 ## Contributing
 
