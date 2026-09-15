@@ -3,10 +3,7 @@ bin/
 obj/
 *.user
 
-# Node / Angular
-frontend/node_modules/
-frontend/dist/
-frontend/.angular/
+# Node (frontend-react tem seu próprio .gitignore pra node_modules/dist)
 
 # Ambiente
 *.env

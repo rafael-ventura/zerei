@@ -1,96 +1,96 @@
-# Zerei 🎮
+# zerei 🎮
 
-> Your game shelf. Track everything you've played — any platform, replays included — and see your gaming history as stats.
+> Sua estante de jogos. Registre tudo que já jogou — qualquer plataforma, rejogadas incluídas — e veja sua trajetória em estatísticas.
 
-A "Letterboxd / Goodreads for video games", focused on **logging your own history** (not just a backlog or reviews): each game can have multiple **playthroughs** (platform, year, hours, status), and your profile aggregates it all into stats.
+Um "Letterboxd/Goodreads pra jogos", focado em **registrar seu próprio histórico** (não é só backlog, nem só review): cada jogo pode ter várias **jogatinas** (plataforma, mês/ano, horas, status), e seu perfil junta tudo isso em estatísticas — horas jogadas, zerados, platinados, plataforma e gênero favoritos, ranking de mais jogados, e um "Wrapped" pra baixar e compartilhar.
+
+Feito pra rodar **local**, na sua própria máquina — sem precisar publicar nada na internet.
+
+## Prints
+
+| Início | Biblioteca | Detalhe do jogo |
+|---|---|---|
+| ![Início](docs/screenshot-home.jpg) | ![Biblioteca](docs/screenshot-biblioteca.jpg) | ![Detalhe do jogo](docs/screenshot-jogo.jpg) |
 
 ## Stack
 
-| Layer | Tech |
+| Camada | Tecnologia |
 |---|---|
 | Backend | **.NET 8** (ASP.NET Core, EF Core, JWT, BCrypt) |
-| Database | **PostgreSQL** (native service — not containerized) |
+| Banco de dados | **PostgreSQL** (serviço nativo — não containerizado) |
 | Frontend | **React 19** (Vite, TypeScript) + **Mantine** + **TanStack Query** |
-| Orchestration | **.NET Aspire** (AppHost + ServiceDefaults — local telemetry dashboard) |
-| Catalog | **RAWG API** (optional — enriches covers, Metacritic, playtime, platforms, genres, DLCs) |
+| Orquestração local | **.NET Aspire** (opcional — dashboard de telemetria) |
+| Catálogo | **RAWG API** (opcional — capas, Metacritic, nota da comunidade, DLCs, jogos parecidos) |
 
-## Data model
+## Como rodar
 
-```
-Jogo            global catalog (name, year, cover, genres, Metacritic, platforms, DLCs, RAWG id)
- └─ UsuarioJogo user↔game link (overall status, rating, favorite, review)
-     └─ Jogatina  each playthrough (platform, year, hours, status, replay?)
-
-Usuario ↔ Seguidor  follow / followers
-```
-
-The same game can have **multiple playthroughs** — e.g. *Final Fantasy X* beaten on PS2 in 2005 **and** replayed on Switch in 2026, each with its own hours and platform.
-
-## How to run
-
-**Prerequisites:** .NET 8 SDK · Node 18+ · PostgreSQL on `localhost:5432` (user `postgres` / password `postgres`)
+**Pré-requisitos:** [.NET 8 SDK](https://dotnet.microsoft.com/download), [Node 18+](https://nodejs.org), PostgreSQL rodando em `localhost:5432` (usuário `postgres` / senha `postgres` — ou ajuste a connection string em `backend/appsettings.json`)
 
 ```bash
+git clone https://github.com/rafael-ventura/zerei.git
+cd zerei
+```
+
+**1. Backend** (`backend/`):
+```bash
 cd backend
-dotnet ef database update   # creates the "zerei" database and applies migrations
+dotnet ef database update   # cria o banco "zerei" e aplica as migrations
 dotnet run --urls http://localhost:5192
 ```
-> On startup, the backend applies migrations and runs the **seed** (genres/platforms bootstrap + ~50 well-known games). Idempotent. Genres/platforms/Metacritic/DLCs also get created dynamically from RAWG as you search — the seed is just the offline fallback.
+Na subida, o backend já roda o **seed** (gêneros/plataformas + ~50 jogos conhecidos) — idempotente, pode rodar de novo sem duplicar nada.
 
+**2. Frontend** (`frontend-react/`, em outro terminal):
 ```bash
 cd frontend-react
 npm install
-npm run dev                 # Vite dev server on http://localhost:5173
+npm run dev
 ```
+Acesse **http://localhost:5173**, crie uma conta e comece a registrar seus jogos.
 
-Or run everything (backend + telemetry dashboard) with Aspire:
-```bash
-cd Zerei.AppHost
-dotnet run
-```
+**Testes:** `dotnet test` na raiz do repo.
 
-Test account: `rafael` / `teste123` (comes with games already tracked), or sign up and go through onboarding.
+### RAWG (opcional, mas recomendado)
 
-**Tests:** `dotnet test` from the repo root (32 unit tests covering auth, library, stats, and social/follow logic).
+Sem a chave, o app funciona só com o catálogo semeado localmente (capas aparecem como placeholders coloridos). Com ela, a busca importa qualquer jogo automaticamente — com capa, Metacritic, nota da comunidade, DLCs e até uma seção de "jogos parecidos".
 
-**RAWG (optional):** without a key the app works fine off the seeded catalog (covers show as colored placeholders). Get a free key at rawg.io/apidocs, then set it locally with:
-```bash
-cd backend
-dotnet user-secrets init
-dotnet user-secrets set "Rawg:ApiKey" "your-key-here"
-```
-Restart the backend — it backfills missing covers/metadata via `POST /api/catalogo/sincronizar-capas` and enriches new games automatically on search. **Never commit the key** to `appsettings.json`.
+1. Crie uma conta grátis em **[rawg.io/apidocs](https://rawg.io/apidocs)** e pegue sua chave (é só pra identificar quem está usando a API deles, sem custo).
+2. Configure ela **localmente**, nunca direto no `appsettings.json`:
+   ```bash
+   cd backend
+   dotnet user-secrets init
+   dotnet user-secrets set "Rawg:ApiKey" "sua-chave-aqui"
+   ```
+3. Reinicie o backend.
 
-Swagger at `http://localhost:5192/swagger` (Development mode).
-
-## Structure
+## Estrutura do projeto
 
 ```
 backend/
-  Api/            controllers, middleware
-  Application/    services, JWT auth, DTOs
-  Domain/         entities, enums
-  Infrastructure/ DbContext, seed data, RAWG client, migrations
-backend.Tests/    xUnit — auth, library, stats, follow
-Zerei.AppHost/        .NET Aspire orchestration (backend + telemetry dashboard)
-Zerei.ServiceDefaults/ shared OpenTelemetry/health-check wiring
+  Api/             controllers, autenticação
+  Application/     services, DTOs, regras de negócio
+  Domain/          entidades, enums
+  Infrastructure/  DbContext, seed, cliente RAWG, migrations
+backend.Tests/     testes (xUnit)
 frontend-react/
   src/
-    api/          TanStack Query hooks (auth, biblioteca, catalogo, perfil, seguidor)
-    components/   Layout, JogoCard, StatusIcon, ProtectedRoute
-    context/      AuthContext
-    pages/        login, signup, onboarding, home (dashboard), library,
-                  game detail, public profile (/u/:username), wrapped
+    api/           hooks do TanStack Query (auth, biblioteca, catalogo, perfil)
+    components/    Layout, JogoCard, StatusIcon
+    pages/         login, onboarding, home, biblioteca, detalhe do jogo,
+                    perfil público (/u/:username), wrapped
 ```
 
-## Roadmap
+## Ideias futuras
 
-- [x] Gaming Wrapped — shareable yearly recap (Spotify Wrapped-style)
-- [x] Social — follow friends
-- [x] Public profile page (`/u/:username`)
-- [ ] Activity feed
-- [ ] Public curated lists ("Best PS2 RPGs")
-- [ ] Monthly history timeline
-- [ ] Real per-platform achievements (Steam first)
-- [ ] "Forgot password" flow (needs an email provider)
-- [ ] PWA / mobile
+- [ ] **Listas de jogos por usuário** — várias listas por pessoa, de 0 a N jogos cada, um jogo podendo estar em mais de uma lista; listas públicas ou privadas; compartilhar uma lista por imagem e/ou CSV pra mostrar fora do app (como o app roda local, isso puxa junto uma tarefa de privacidade de perfil/lista)
+- [ ] Feed de atividade
+- [ ] Linha do tempo mensal do histórico
+- [ ] Conquistas reais por plataforma (Steam primeiro)
+- [ ] PWA / instalável no celular
+
+Tem uma ideia ou achou um bug? Abra uma [issue](../../issues) — é o lugar certo pra isso, mantém o README enxuto.
+
+## Contribuindo
+
+Veja [CONTRIBUTING.md](CONTRIBUTING.md) pro padrão de commits, testes antes de enviar, e cuidados com segredos.
+
+Este projeto nasceu de uma vontade bem simples: ter algo que desse gosto de preencher, do jeito que eu queria usar. Está aberto pra colaboração — sinta-se à vontade pra abrir uma issue, sugerir algo ou mandar um PR.
