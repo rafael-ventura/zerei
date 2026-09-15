@@ -1,38 +1,38 @@
-# Contribuindo
+# Contributing
 
-Projeto pessoal, mas aberto a ideias e PRs. Alguns padrões pra manter o histórico legível.
+Personal project, but open to ideas and PRs. A few conventions to keep the history readable.
 
-## Antes de commitar
+## Before committing
 
-- **Backend:** `dotnet test` (raiz do repo) precisa passar.
-- **Frontend:** `npx tsc --noEmit` (dentro de `frontend-react/`) precisa sair limpo.
-- Se a mudança envolve UI, teste manualmente no navegador antes de dar como pronto — os testes automatizados não substituem isso.
+- **Backend:** `dotnet test` (repo root) must pass.
+- **Frontend:** `npx tsc --noEmit` (inside `frontend-react/`) must come back clean.
+- If the change touches UI, test it manually in the browser before calling it done — automated tests don't cover that.
 
-## Nunca commitar segredos
+## Never commit secrets
 
-- A chave da RAWG (`Rawg:ApiKey`) **nunca** vai em `appsettings.json` nem em nenhum arquivo versionado — só via `dotnet user-secrets` (fica fora do repo, em `%APPDATA%`/`~/.microsoft/usersecrets`).
-- Antes de um `git add -A` ou `git commit`, dá uma olhada no `git status`/`git diff` — principalmente se mexeu em `appsettings*.json` ou criou algum arquivo de config novo.
-- Se um segredo for commitado por engano: **trocar a chave/senha primeiro**, revertê-lo do histórico depois — o commit sozinho não é o suficiente uma vez que já foi pro remoto.
+- The RAWG key (`Rawg:ApiKey`) **never** goes into `appsettings.json` or any versioned file — only via `dotnet user-secrets` (lives outside the repo, under `%APPDATA%`/`~/.microsoft/usersecrets`).
+- Before a `git add -A` or `git commit`, glance at `git status`/`git diff` — especially if you touched `appsettings*.json` or added a new config file.
+- If a secret gets committed by accident: **rotate it first**, clean up the history after — the commit alone isn't enough once it's already been pushed.
 
-## Mensagens de commit
+## Commit messages
 
-Formato: `tipo(escopo): descrição curta em português, no imperativo`
+Format: `type(scope): short imperative description`
 
-Tipos usados no projeto: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`.
+Types used in this project: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`.
 
 ```
-feat(catalogo): jogos parecidos na tela de detalhe
-fix(front): corrige resenha sumindo por race condition
-refactor(biblioteca): encapsula regra de flags de conclusão
+feat(catalog): similar games section on the game detail page
+fix(front): fix review text disappearing from a race condition
+refactor(library): encapsulate completion-flags business rule
 ```
 
-- Assunto curto (uma linha, sem ponto final) dizendo **o quê**.
-- Corpo opcional (linha em branco depois do assunto) explicando **por quê** — só quando o motivo não é óbvio pela mudança em si. Evite descrever linha por linha o que já dá pra ver no diff.
+- Short subject line (no trailing period) saying **what**.
+- Optional body (blank line after the subject) explaining **why** — only when the reason isn't obvious from the diff itself. Don't narrate the diff line by line.
 
-## Branches e PRs
+## Branches and PRs
 
-Mudanças pequenas/próprias: direto em `master`. Contribuição externa: fork → branch com nome descritivo → PR contra `master`, seguindo o mesmo padrão de commit acima.
+Small/own changes: straight to `master`. External contributions: fork → descriptively-named branch → PR against `master`, following the same commit convention above.
 
-## Onde propor ideias
+## Where to propose ideas
 
-Melhorias e sugestões de funcionalidade vão nas [issues](../../issues) do GitHub, não no README — mantém a documentação principal enxuta e centraliza a discussão num lugar só.
+Feature ideas and suggestions go in GitHub [issues](../../issues), not the README — keeps the main docs focused and centralizes discussion in one place.

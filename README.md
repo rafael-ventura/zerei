@@ -1,30 +1,32 @@
 # zerei 🎮
 
-> Sua estante de jogos. Registre tudo que já jogou — qualquer plataforma, rejogadas incluídas — e veja sua trajetória em estatísticas.
+> *"Zerei"* is Brazilian Portuguese slang for **beating a game** — from *zerar* ("to zero out"), as in clearing every last bit of it. This is a shelf for tracking every game you've zerado (and every one you haven't, yet).
 
-Um "Letterboxd/Goodreads pra jogos", focado em **registrar seu próprio histórico** (não é só backlog, nem só review): cada jogo pode ter várias **jogatinas** (plataforma, mês/ano, horas, status), e seu perfil junta tudo isso em estatísticas — horas jogadas, zerados, platinados, plataforma e gênero favoritos, ranking de mais jogados, e um "Wrapped" pra baixar e compartilhar.
+Your game shelf. Log everything you've played — any platform, replays included — and see your history as stats.
 
-Feito pra rodar **local**, na sua própria máquina — sem precisar publicar nada na internet.
+A "Letterboxd/Goodreads for games", focused on **logging your own history** (not just a backlog, not just reviews): each game can have multiple **playthroughs** (platform, month/year, hours, status), and your profile rolls it all up into stats — hours played, completions, platinums, favorite platform/genre, most-played ranking, and a shareable "Wrapped" recap.
 
-## Prints
+Built to run **locally**, on your own machine — no need to deploy anything.
 
-| Início | Biblioteca | Detalhe do jogo |
+## Screenshots
+
+| Home | Library | Game detail |
 |---|---|---|
-| ![Início](docs/screenshot-home.jpg) | ![Biblioteca](docs/screenshot-biblioteca.jpg) | ![Detalhe do jogo](docs/screenshot-jogo.jpg) |
+| ![Home](docs/screenshot-home.jpg) | ![Library](docs/screenshot-biblioteca.jpg) | ![Game detail](docs/screenshot-jogo.jpg) |
 
 ## Stack
 
-| Camada | Tecnologia |
+| Layer | Tech |
 |---|---|
 | Backend | **.NET 8** (ASP.NET Core, EF Core, JWT, BCrypt) |
-| Banco de dados | **PostgreSQL** (serviço nativo — não containerizado) |
+| Database | **PostgreSQL** (native service — not containerized) |
 | Frontend | **React 19** (Vite, TypeScript) + **Mantine** + **TanStack Query** |
-| Orquestração local | **.NET Aspire** (opcional — dashboard de telemetria) |
-| Catálogo | **RAWG API** (opcional — capas, Metacritic, nota da comunidade, DLCs, jogos parecidos) |
+| Local orchestration | **.NET Aspire** (optional — telemetry dashboard) |
+| Catalog | **RAWG API** (optional — covers, Metacritic, community rating, DLCs, similar games) |
 
-## Como rodar
+## Running it
 
-**Pré-requisitos:** [.NET 8 SDK](https://dotnet.microsoft.com/download), [Node 18+](https://nodejs.org), PostgreSQL rodando em `localhost:5432` (usuário `postgres` / senha `postgres` — ou ajuste a connection string em `backend/appsettings.json`)
+**Prerequisites:** [.NET 8 SDK](https://dotnet.microsoft.com/download), [Node 18+](https://nodejs.org), PostgreSQL on `localhost:5432` (user `postgres` / password `postgres` — or adjust the connection string in `backend/appsettings.json`)
 
 ```bash
 git clone https://github.com/rafael-ventura/zerei.git
@@ -34,63 +36,63 @@ cd zerei
 **1. Backend** (`backend/`):
 ```bash
 cd backend
-dotnet ef database update   # cria o banco "zerei" e aplica as migrations
+dotnet ef database update   # creates the "zerei" database and applies migrations
 dotnet run --urls http://localhost:5192
 ```
-Na subida, o backend já roda o **seed** (gêneros/plataformas + ~50 jogos conhecidos) — idempotente, pode rodar de novo sem duplicar nada.
+On startup, the backend runs a **seed** (genres/platforms + ~50 well-known games, idempotent — safe to run again). It also creates a demo account: **`demo` / `demo1234`**, with a handful of games already tracked, so there's something to look at right away.
 
-**2. Frontend** (`frontend-react/`, em outro terminal):
+**2. Frontend** (`frontend-react/`, in another terminal):
 ```bash
 cd frontend-react
 npm install
 npm run dev
 ```
-Acesse **http://localhost:5173**, crie uma conta e comece a registrar seus jogos.
+Open **http://localhost:5173**, log in with the demo account (or sign up fresh) and start logging your games.
 
-**Testes:** `dotnet test` na raiz do repo.
+**Tests:** `dotnet test` from the repo root.
 
-### RAWG (opcional, mas recomendado)
+### RAWG (optional, but recommended)
 
-Sem a chave, o app funciona só com o catálogo semeado localmente (capas aparecem como placeholders coloridos). Com ela, a busca importa qualquer jogo automaticamente — com capa, Metacritic, nota da comunidade, DLCs e até uma seção de "jogos parecidos".
+Without a key, the app still works off the seeded catalog (covers show as colored placeholders). With one, search auto-imports any game — cover, Metacritic, community rating, DLCs, and even a "similar games" section.
 
-1. Crie uma conta grátis em **[rawg.io/apidocs](https://rawg.io/apidocs)** e pegue sua chave (é só pra identificar quem está usando a API deles, sem custo).
-2. Configure ela **localmente**, nunca direto no `appsettings.json`:
+1. Grab a free key at **[rawg.io/apidocs](https://rawg.io/apidocs)** (just identifies who's calling their API, no cost).
+2. Set it **locally**, never directly in `appsettings.json`:
    ```bash
    cd backend
    dotnet user-secrets init
-   dotnet user-secrets set "Rawg:ApiKey" "sua-chave-aqui"
+   dotnet user-secrets set "Rawg:ApiKey" "your-key-here"
    ```
-3. Reinicie o backend.
+3. Restart the backend.
 
-## Estrutura do projeto
+## Project structure
 
 ```
 backend/
-  Api/             controllers, autenticação
-  Application/     services, DTOs, regras de negócio
-  Domain/          entidades, enums
-  Infrastructure/  DbContext, seed, cliente RAWG, migrations
-backend.Tests/     testes (xUnit)
+  Api/             controllers, auth
+  Application/     services, DTOs, business rules
+  Domain/          entities, enums
+  Infrastructure/  DbContext, seed data, RAWG client, migrations
+backend.Tests/     xUnit tests
 frontend-react/
   src/
-    api/           hooks do TanStack Query (auth, biblioteca, catalogo, perfil)
+    api/           TanStack Query hooks (auth, library, catalog, profile)
     components/    Layout, JogoCard, StatusIcon
-    pages/         login, onboarding, home, biblioteca, detalhe do jogo,
-                    perfil público (/u/:username), wrapped
+    pages/         login, onboarding, home, library, game detail,
+                    public profile (/u/:username), wrapped
 ```
 
-## Ideias futuras
+## Ideas / roadmap
 
-- [ ] **Listas de jogos por usuário** — várias listas por pessoa, de 0 a N jogos cada, um jogo podendo estar em mais de uma lista; listas públicas ou privadas; compartilhar uma lista por imagem e/ou CSV pra mostrar fora do app (como o app roda local, isso puxa junto uma tarefa de privacidade de perfil/lista)
-- [ ] Feed de atividade
-- [ ] Linha do tempo mensal do histórico
-- [ ] Conquistas reais por plataforma (Steam primeiro)
-- [ ] PWA / instalável no celular
+- [ ] **User-made game lists** — multiple lists per user, 0 to N games each, a game can belong to more than one list; lists public or private; shareable as an image and/or CSV so people can see them outside the app (since the app runs locally, this drags in a profile/list privacy piece too)
+- [ ] Activity feed
+- [ ] Monthly history timeline
+- [ ] Real per-platform achievements (Steam first)
+- [ ] PWA / installable on mobile
 
-Tem uma ideia ou achou um bug? Abra uma [issue](../../issues) — é o lugar certo pra isso, mantém o README enxuto.
+Got an idea or found a bug? Open an [issue](../../issues) — that's the right place for it, keeps this README focused.
 
-## Contribuindo
+## Contributing
 
-Veja [CONTRIBUTING.md](CONTRIBUTING.md) pro padrão de commits, testes antes de enviar, e cuidados com segredos.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the commit convention, pre-commit checks, and secret-handling rules.
 
-Este projeto nasceu de uma vontade bem simples: ter algo que desse gosto de preencher, do jeito que eu queria usar. Está aberto pra colaboração — sinta-se à vontade pra abrir uma issue, sugerir algo ou mandar um PR.
+This project started from a simple itch: wanting something that felt good to fill in, built exactly the way I wanted to use it. It's open to collaboration — feel free to open an issue, suggest something, or send a PR.

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Zerei.Domain.Entities;
+using Zerei.Domain.Enums;
 
 namespace Zerei.Infrastructure.Data;
 
@@ -15,6 +16,7 @@ public static class SeedData
         await SeedPlataformasAsync(db);
         await SeedJogosAsync(db);
         await SeedJogosPessoaisAsync(db);
+        await SeedUsuarioDemoAsync(db);
     }
 
     private static readonly (string Slug, string Nome)[] Generos =
@@ -203,5 +205,42 @@ public static class SeedData
             db.Jogos.AddRange(novos);
             await db.SaveChangesAsync();
         }
+    }
+
+    /// <summary>
+    /// Conta de demonstração (username "demo") — criada só se ainda não existir, com alguns
+    /// jogos já marcados, pra quem clonar o projeto ter algo pra ver sem precisar montar a
+    /// biblioteca do zero. Senha propositalmente simples: é só uma conta local de teste.
+    /// </summary>
+    private static async Task SeedUsuarioDemoAsync(ZereiDbContext db)
+    {
+        if (await db.Usuarios.AnyAsync(u => u.Username == "demo")) return;
+
+        var demo = new Usuario
+        {
+            Nome = "Conta Demo",
+            Username = "demo",
+            Email = "demo@zerei.local",
+            SenhaHash = BCrypt.Net.BCrypt.HashPassword("demo1234"),
+        };
+        db.Usuarios.Add(demo);
+        await db.SaveChangesAsync();
+
+        var nomesDemo = new[] { "The Witcher 3: Wild Hunt", "Hollow Knight", "Celeste", "Hades", "Elden Ring" };
+        var jogosDemo = await db.Jogos.Where(j => nomesDemo.Contains(j.Nome)).ToListAsync();
+
+        foreach (var jogo in jogosDemo)
+        {
+            db.UsuarioJogos.Add(new UsuarioJogo
+            {
+                UsuarioId = demo.Id,
+                JogoId = jogo.Id,
+                Status = StatusJogo.Jogado,
+                Zerado = true,
+                Nota = 9,
+                Favorito = jogo.Nome == "Elden Ring",
+            });
+        }
+        await db.SaveChangesAsync();
     }
 }
