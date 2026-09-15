@@ -86,7 +86,7 @@ frontend-react/
 Tracked as [issues](../../issues) rather than a list here, so discussion stays in one place:
 
 - [User-made game lists](../../issues/1) — public/private, shareable via image/CSV
-- [Activity feed](../../issues/2)
+- [Internationalize the UI](../../issues/6) (English)
 - [Monthly history timeline](../../issues/3)
 - [Real per-platform achievements](../../issues/4) (Steam first)
 - [PWA / installable on mobile](../../issues/5)
